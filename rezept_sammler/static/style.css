@@ -101,3 +101,21 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .book-cover-frame{position:relative;border-radius:8px 15px 15px 8px;overflow:hidden;box-shadow:0 16px 30px rgba(0,0,0,.18);background:var(--book-color);padding-left:8px}
 .book-cover-frame .book-cover-img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:0 12px 12px 0;display:block}
 .book-color-edge{position:absolute;left:0;top:0;bottom:0;width:10px;background:var(--book-color);box-shadow:inset -3px 0 rgba(0,0,0,.14)}
+
+.meta-grid,.nutrition-edit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.meta-grid input,.nutrition-edit-grid input{margin-bottom:12px}
+.recipe-facts{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.fact-card{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;min-width:150px;box-shadow:var(--shadow-sm)}.fact-card>span{font-size:25px}.fact-card small,.fact-card em{display:block;color:var(--muted);font-style:normal;font-size:12px}.fact-card b{display:block;margin:2px 0}
+.nutrition-overview{margin:14px 0}.nutrition-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.nutrition-grid>div{text-align:center;padding:12px 7px;border-radius:13px;background:var(--bg)}.nutrition-grid b{display:block;font-size:20px}.nutrition-grid span{font-size:11px;color:var(--muted)}
+.nutrition-edit{margin:20px 0;padding:13px;border:1px solid var(--border);border-radius:15px}.nutrition-edit summary{font-weight:700;cursor:pointer}
+.ingredient-checks{display:flex;flex-direction:column;gap:8px;margin:16px 0}.ingredient-checks label{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:12px}.ingredient-checks input{width:auto;margin:3px 0 0}
+.cook-head{overflow:hidden}.cook-hero{width:100%;max-height:320px;object-fit:cover;border-radius:14px;margin-bottom:16px}
+@media(max-width:800px){.meta-grid,.nutrition-edit-grid{grid-template-columns:repeat(2,1fr)}.nutrition-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:480px){.meta-grid,.nutrition-edit-grid{grid-template-columns:1fr}.recipe-facts{display:grid;grid-template-columns:1fr 1fr}.fact-card{min-width:0}}
+
+/* 0.5.1: Bearbeiten – Bildgalerie und Verwaltung vor Speichern */
+.edit-gallery-section{margin:24px 0 18px;padding-top:20px;border-top:1px solid var(--border)}
+.edit-gallery-section .edit-gallery{display:flex;gap:12px;overflow-x:auto;padding:3px 1px 10px;scroll-snap-type:x proximity}
+.edit-gallery-section .edit-image-card{flex:0 0 min(270px,78vw);scroll-snap-align:start;border:1px solid var(--border);border-radius:17px;overflow:hidden;background:var(--card)}
+.edit-gallery-section .edit-image-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.edit-management{margin:22px 0 18px}
+.edit-save-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:20px}
+.edit-save-actions .secondary{margin-right:auto}
+@media(max-width:560px){.edit-save-actions{display:grid;grid-template-columns:1fr 1fr}.edit-save-actions a,.edit-save-actions button{text-align:center;width:100%}}
