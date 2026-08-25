@@ -129,3 +129,53 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 
 .bring-list-picker{margin-bottom:24px;padding:14px;border-radius:16px;background:var(--bg);border:1px solid var(--border)}
 .bring-list-picker select{margin-bottom:7px}
+
+.recipe-actionbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.action-mini{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:var(--card);text-decoration:none;font-size:13px;box-shadow:var(--shadow-sm)}
+.action-mini span{font-size:16px}.action-mini b{font-weight:700}
+.action-mini:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--border));transform:translateY(-1px)}
+.bring-mini{padding-inline:9px;background:color-mix(in srgb,var(--accent) 8%,var(--card))}
+@media(max-width:520px){
+ .recipe-actionbar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+ .action-mini{justify-content:center;flex-direction:column;gap:3px;padding:8px 4px;font-size:11px;text-align:center}
+ .action-mini span{font-size:18px}
+}
+
+/* 0.5.8 – kompakte Aktionsbuttons auf dem iPhone */
+@media(max-width:600px){
+  .recipe-actionbar{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    gap:6px!important;
+    margin:8px 0 14px!important;
+  }
+  .recipe-actionbar .action-mini{
+    flex:0 0 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    min-height:34px!important;
+    padding:6px 9px!important;
+    border-radius:10px!important;
+    flex-direction:row!important;
+    justify-content:center!important;
+    gap:4px!important;
+    font-size:11px!important;
+    line-height:1!important;
+  }
+  .recipe-actionbar .action-mini span{
+    font-size:14px!important;
+    line-height:1!important;
+  }
+  .recipe-actionbar .action-mini b{
+    font-size:11px!important;
+    white-space:nowrap!important;
+  }
+}
+@media(max-width:390px){
+  .recipe-actionbar .action-mini{
+    padding:6px 7px!important;
+  }
+  .recipe-actionbar .action-mini b{
+    font-size:10px!important;
+  }
+}
