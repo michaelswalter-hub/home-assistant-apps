@@ -5,15 +5,37 @@
 <section class="panel scan-drop">
 <div class="scan-icon">📷</div><h2>Foto auswählen oder aufnehmen</h2>
 <p class="subtle">Auf dem iPhone kannst du Kamera, Fotomediathek oder Dateien verwenden.</p>
-<form method="post" enctype="multipart/form-data"><input type="hidden" name="action" value="scan">
-<input class="file-input" type="file" name="scan_image" accept="image/*" required>
-<button class="primary">✨ Mit KI erkennen</button></form>
+<form method="post" enctype="multipart/form-data" class="photo-scan-form">
+<input type="hidden" name="action" value="scan">
+<input class="file-input" type="file" name="scan_image" accept="image/jpeg,image/png,image/webp,image/*" required>
+<button class="primary">✨ Mit KI erkennen</button>
+</form>
+<div class="ai-progress photo-scan-progress" hidden>
+<div class="spinner"></div>
+<b>KI erkennt dein Rezept …</b>
+<span>Foto wird vorbereitet und analysiert. Das kann etwa 10–60 Sekunden dauern.</span>
+</div>
+<script>
+document.querySelector('.photo-scan-form')?.addEventListener('submit',e=>{
+  const progress=document.querySelector('.photo-scan-progress');
+  if(progress) progress.hidden=false;
+  const button=e.currentTarget.querySelector('button');
+  if(button){button.disabled=true;button.textContent='Rezept wird erkannt …';}
+});
+</script>
 </section>
 {% else %}
 <section class="panel">
 <h2>Vorschau prüfen</h2><p class="subtle">Vor dem Speichern kannst du alles korrigieren.</p>
-<form method="post"><input type="hidden" name="action" value="save">
+<form method="post"><input type="hidden" name="action" value="save"><input type="hidden" name="scan_image" value="{{preview.scan_image or '')}}">
 <label>Titel</label><input name="title" value="{{preview.title}}" required>
+<div class="meta-grid import-meta">
+<div><label>Portionen</label><input name="servings" value="{{preview.servings}}"></div>
+<div><label>Vorbereitung (Min.)</label><input type="number" min="0" name="prep_minutes" value="{{preview.prep_minutes or 0}}"></div>
+<div><label>Kochzeit (Min.)</label><input type="number" min="0" name="cook_minutes" value="{{preview.cook_minutes or 0}}"></div>
+<div><label>Gesamtzeit (Min.)</label><input type="number" min="0" name="total_minutes" value="{{preview.total_minutes or 0}}"></div>
+</div>
+
 {% if preview.servings %}<div class="notice">👥 {{preview.servings}}</div>{% endif %}
 <label>Kochbücher</label><div class="choice-pills">{% for b in cookbooks %}<label><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>📚 {{b.name}}</span></label>{% endfor %}</div>
 <label>Tags</label><div class="choice-pills">{% for t in tags %}<label><input type="checkbox" name="tags" value="{{t.id}}"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span></label>{% endfor %}</div>

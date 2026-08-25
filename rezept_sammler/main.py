@@ -1,7 +1,7 @@
 from flask import Flask, request, redirect, render_template, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
-import sqlite3, re, uuid, json, socket, ipaddress, html, base64, mimetypes, os
+import sqlite3, re, uuid, json, socket, ipaddress, html, base64, mimetypes, os, io
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urljoin
@@ -190,112 +190,57 @@ def parse_json_text(text):
             return json.loads(hit.group(0))
         raise ValueError("Die KI-Antwort konnte nicht als Rezept gelesen werden.")
 
-def file_to_data_url(file):
-    raw=file.read()
-    if len(raw)>12*1024*1024:
-        raise ValueError("Das Bild ist zu groß (max. 12 MB).")
-    mime=file.mimetype or "image/jpeg"
-    if mime not in ("image/jpeg","image/png","image/webp","image/gif"):
-        mime="image/jpeg"
-    return f"data:{mime};base64,"+base64.b64encode(raw).decode("ascii")
-
-def file_to_pdf_data_url(file):
-    raw=file.read()
-    if len(raw)>20*1024*1024:
-        raise ValueError("Das PDF ist zu groß (max. 20 MB).")
-    if not raw.startswith(b"%PDF"):
-        raise ValueError("Die ausgewählte Datei ist kein gültiges PDF.")
-    return "data:application/pdf;base64,"+base64.b64encode(raw).decode("ascii")
-
-def ai_import_pdf(file):
-    settings=load_settings()
-    api_key=(settings.get("api_key") or "").strip()
-    if not api_key:
-        raise ValueError("Bitte zuerst den OpenAI API-Key unter Einstellungen hinterlegen.")
-
+def normalize_scan_image(file):
+    """
+    Normalize camera/photo-library images before sending to AI.
+    Returns (data_url, saved_filename).
+    """
     raw=file.read()
     if not raw:
-        raise ValueError("Die ausgewählte PDF-Datei ist leer.")
-    if len(raw) > 20*1024*1024:
-        raise ValueError("Das PDF ist zu groß. Bitte eine Datei unter 20 MB verwenden.")
+        raise ValueError("Das ausgewählte Bild ist leer.")
+    if len(raw)>15*1024*1024:
+        raise ValueError("Das Bild ist zu groß (max. 15 MB).")
 
-    filename=file.filename or "rezept.pdf"
-    boundary="----RecipePDF"+uuid.uuid4().hex
-    body=(
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\nuser_data\r\n"
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n"
-        f"Content-Type: application/pdf\r\n\r\n"
-    ).encode("utf-8") + raw + f"\r\n--{boundary}--\r\n".encode("utf-8")
-
-    req=Request("https://api.openai.com/v1/files",data=body,method="POST",headers={
-        "Authorization":"Bearer "+api_key,
-        "Content-Type":"multipart/form-data; boundary="+boundary
-    })
     try:
-        with urlopen(req,timeout=60) as response:
-            uploaded=json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        detail=exc.read().decode("utf-8",errors="replace")
-        raise ValueError(f"PDF-Upload zur KI fehlgeschlagen ({exc.code}): {detail[:300]}")
-    except Exception as exc:
-        raise ValueError(f"PDF-Upload zur KI fehlgeschlagen: {exc}")
+        img=Image.open(io.BytesIO(raw))
+        img=ImageOps.exif_transpose(img)
+        img.load()
+    except Exception:
+        raise ValueError(
+            "Das Bildformat konnte nicht gelesen werden. "
+            "Bitte auf dem iPhone ein JPEG/PNG auswählen oder das Foto als Screenshot speichern."
+        )
 
-    file_id=uploaded.get("id")
-    if not file_id:
-        raise ValueError("Für das PDF wurde keine Datei-ID zurückgegeben.")
+    # Reduce extremely large camera images for faster / cheaper vision requests.
+    img.thumbnail((2400,2400))
+    if img.mode not in ("RGB","L"):
+        background=Image.new("RGB",img.size,"white")
+        if "A" in img.getbands():
+            background.paste(img,mask=img.getchannel("A"))
+        else:
+            background.paste(img)
+        img=background
+    elif img.mode=="L":
+        img=img.convert("RGB")
 
-    prompt="""Lies dieses PDF und extrahiere das darin enthaltene Rezept.
-Gib ausschließlich valides JSON zurück:
-{
- "title": "Rezeptname",
- "ingredients": ["eine Zutat pro Eintrag"],
- "steps": ["ein vollständiger Arbeitsschritt pro Eintrag"],
- "servings": "Portionsangabe oder leer",
- "prep_minutes": Zahl oder 0,
- "cook_minutes": Zahl oder 0,
- "total_minutes": Zahl oder 0
-}
-Falls das PDF ein Scan ist, lies den sichtbaren Text. Entferne Werbung, Kopf-/Fußzeilen,
-Seitenzahlen und sonstige nicht zum Rezept gehörende Inhalte.
-Übernimm Mengen und Einheiten möglichst exakt und erfinde keine fehlenden Angaben."""
+    buffer=io.BytesIO()
+    img.save(buffer,format="JPEG",quality=88,optimize=True)
+    normalized=buffer.getvalue()
 
-    payload={
-        "model":settings.get("text_model") or "gpt-5",
-        "input":[{
-            "role":"user",
-            "content":[
-                {"type":"input_file","file_id":file_id},
-                {"type":"input_text","text":prompt}
-            ]
-        }]
-    }
-    try:
-        result=openai_json("/responses",payload,timeout=120)
-        obj=parse_json_text(response_text(result))
-    except Exception as exc:
-        raise ValueError(f"KI konnte das PDF nicht auslesen: {exc}")
+    filename=f"scan_{uuid.uuid4().hex}.jpg"
+    (IMG_DIR/filename).write_bytes(normalized)
 
-    ingredients=obj.get("ingredients",[])
-    steps=obj.get("steps",[])
-    if isinstance(ingredients,str):
-        ingredients=[x.strip() for x in ingredients.splitlines() if x.strip()]
-    if isinstance(steps,str):
-        steps=split_steps(steps)
+    return "data:image/jpeg;base64,"+base64.b64encode(normalized).decode("ascii"), filename
 
-    return {
-        "title":str(obj.get("title","")).strip(),
-        "ingredients":[str(x).strip() for x in ingredients if str(x).strip()],
-        "steps":[str(x).strip() for x in steps if str(x).strip()],
-        "servings":str(obj.get("servings","")).strip(),
-        "prep_minutes":int(obj.get("prep_minutes",0) or 0),
-        "cook_minutes":int(obj.get("cook_minutes",0) or 0),
-        "total_minutes":int(obj.get("total_minutes",0) or 0)
-    }
+def file_to_data_url(file):
+    # kept for compatibility with any older call sites
+    data_url,_=normalize_scan_image(file)
+    return data_url
 
 
 def ai_scan_recipe(file):
     settings=load_settings()
-    data_url=file_to_data_url(file)
+    data_url,scan_image=normalize_scan_image(file)
     prompt="""Lies dieses fotografierte oder gescannte Rezept. Gib ausschließlich valides JSON zurück:
 {
  "title": "Rezeptname",
@@ -326,7 +271,8 @@ def ai_scan_recipe(file):
         "servings":str(obj.get("servings","")).strip(),
         "prep_minutes":int(obj.get("prep_minutes",0) or 0),
         "cook_minutes":int(obj.get("cook_minutes",0) or 0),
-        "total_minutes":int(obj.get("total_minutes",0) or 0)
+        "total_minutes":int(obj.get("total_minutes",0) or 0),
+        "scan_image":scan_image
     }
 
 def ai_generate_image(prompt, prefix="ai"):
@@ -1017,6 +963,9 @@ def scan_recipe():
                     con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
                 for tid in request.form.getlist("tags"):
                     con.execute("INSERT OR IGNORE INTO recipe_tags VALUES(?,?)",(rid,int(tid)))
+                scan_image=Path(request.form.get("scan_image","")).name
+                if scan_image and (IMG_DIR/scan_image).exists():
+                    add_recipe_gallery_image(con,rid,scan_image,"scan")
                 con.commit()
                 auto=load_settings().get("auto_ai_image")
                 if auto:

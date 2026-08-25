@@ -217,3 +217,8 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 
 .bring-diagnostics{margin-top:18px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg)}
 .bring-diagnostics summary{cursor:pointer;font-weight:700}.bring-diagnostics pre{white-space:pre-wrap;font-size:12px}
+
+/* 0.5.10: +Rezept immer sichtbar */
+.recipe-actionbar .new-recipe-mini{display:inline-flex!important;visibility:visible!important;opacity:1!important}
+
+.photo-scan-progress{margin-top:18px}.photo-scan-progress span{color:var(--muted);font-size:13px;text-align:center}
