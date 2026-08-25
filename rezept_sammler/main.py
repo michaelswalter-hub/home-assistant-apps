@@ -422,30 +422,72 @@ def ha_api(path, payload=None, method="GET", timeout=30):
         except: detail=""
         raise ValueError(f"Home Assistant API-Fehler {exc.code}: {detail[:250]}")
 
-def ha_todo_entities():
+def ha_connection_diagnostics():
+    info={
+        "token_present":bool(os.environ.get("SUPERVISOR_TOKEN","")),
+        "api_ok":False,
+        "todo_count":0,
+        "error":""
+    }
     try:
         states=ha_api("/states")
-        result=[]
+        info["api_ok"]=True
+        info["todo_count"]=len([x for x in states if str(x.get("entity_id","")).startswith("todo.")])
+    except Exception as exc:
+        info["error"]=str(exc)
+    return info
+
+def ha_todo_entities():
+    """
+    Return writable Home Assistant to-do entities.
+
+    Home Assistant's /states response does not reliably expose the source
+    integration for a to-do entity. Bring lists can therefore be named simply
+    "Einkaufsliste" without the word "bring". Prefer entities that can be
+    identified as Bring, but fall back to all writable to-do entities rather
+    than hiding valid Bring lists.
+    """
+    try:
+        states=ha_api("/states")
+        writable=[]
+        bring=[]
+
         for x in states:
             entity_id=str(x.get("entity_id",""))
             if not entity_id.startswith("todo."):
                 continue
+
             attrs=x.get("attributes",{}) or {}
             supported=attrs.get("supported_features")
             try:
                 supported=int(supported) if supported is not None else None
             except Exception:
                 supported=None
+
+            # CREATE_TODO_ITEM is feature bit 1.
             if supported is not None and not (supported & 1):
                 continue
+
             name=str(attrs.get("friendly_name") or entity_id)
+            row={"entity_id":entity_id,"name":name}
+            writable.append(row)
+
             marker=" ".join([
-                entity_id,name,str(attrs.get("integration","")),str(attrs.get("platform",""))
+                entity_id,
+                name,
+                str(attrs.get("integration","")),
+                str(attrs.get("platform","")),
+                str(attrs.get("attribution",""))
             ]).lower()
-            if "bring" not in marker:
-                continue
-            result.append({"entity_id":entity_id,"name":name})
-        return sorted(result,key=lambda x:x["name"].lower())
+
+            if "bring" in marker:
+                bring.append(row)
+
+        rows=bring if bring else writable
+        # Remove duplicates and sort.
+        unique={x["entity_id"]:x for x in rows}
+        return sorted(unique.values(),key=lambda x:x["name"].lower())
+
     except Exception:
         return []
 
@@ -1061,6 +1103,7 @@ def recipe_bring():
 
     settings=load_settings()
     todo_entities=ha_todo_entities()
+    diagnostics=ha_connection_diagnostics()
     ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines() if x.strip()]
     error=""
     success=""
@@ -1092,7 +1135,7 @@ def recipe_bring():
         error=error,
         success=success,
         todo_entities=todo_entities,
-        selected_entity=selected_entity)
+        selected_entity=selected_entity,diagnostics=diagnostics)
 
 
 def recipe_own_images():

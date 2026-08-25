@@ -25,12 +25,12 @@
       {% endfor %}
     </select>
     <p class="field-help">
-      Angezeigt werden die in Home Assistant verfügbaren To-do-Listen, darunter deine Bring!-Listen.
+      Die App bevorzugt eindeutig erkennbare Bring!-Listen. Falls Home Assistant die Herkunft der Liste nicht mitsendet, werden die beschreibbaren Einkaufs-/To-do-Listen als Auswahl angezeigt.
       Die zuletzt verwendete Liste wird beim nächsten Mal vorausgewählt.
     </p>
     {% else %}
     <div class="notice error">
-      Home Assistant liefert aktuell keine To-do-Listen. Prüfe unter
+      Home Assistant liefert aktuell keine beschreibbare To-do-Liste. Prüfe unter
       Einstellungen → Geräte & Dienste, ob Bring! eingerichtet ist.
     </div>
     {% endif %}
@@ -66,6 +66,18 @@
   </div>
 
 </form>
+
+{% if not diagnostics.api_ok or not todo_entities %}
+<details class="bring-diagnostics">
+  <summary>Technische Diagnose</summary>
+  <div>
+    <p>Home-Assistant-API: <b>{{"OK" if diagnostics.api_ok else "Fehler"}}</b></p>
+    <p>API-Token vorhanden: <b>{{"Ja" if diagnostics.token_present else "Nein"}}</b></p>
+    <p>Gefundene To-do-Entitäten: <b>{{diagnostics.todo_count}}</b></p>
+    {% if diagnostics.error %}<pre>{{diagnostics.error}}</pre>{% endif %}
+  </div>
+</details>
+{% endif %}
 </section>
 
 <script>

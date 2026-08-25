@@ -1,9 +1,16 @@
 {% extends "base.html" %}{% block content %}
 <article class="card detail">
-<div class="pad"><h1>{{recipe.title}}</h1><p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
+<div class="pad"><h1>{{recipe.title}}</h1>
+<div class="recipe-actionbar">
+  <a class="action-mini" href="?view=new"><span>＋</span><b>Rezept</b></a>
+  <a class="action-mini" href="?view=cook&id={{recipe.id}}"><span>👨‍🍳</span><b>Kochmodus</b></a>
+  <a class="action-mini" href="?view=edit&id={{recipe.id}}"><span>✏️</span><b>Bearbeiten</b></a>
+  <a class="action-mini bring-mini" href="?view=bring&id={{recipe.id}}"><span>🛒</span><b>Bring</b></a>
+</div>
+<p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
 {% if recipe.source_url %}<p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>{% endif %}
-<div class="actions"><a class="primary" href="?view=cook&id={{recipe.id}}">👨‍🍳 Kochmodus</a>
-<a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a><a class="primary-soft" href="?view=bring&id={{recipe.id}}">🛒 Zutaten zu Bring!</a></div></div></article>
+<div class="actions">
+</div></div></article>
 {% if gallery %}
 <section class="recipe-gallery">
 <div class="gallery-track">
