@@ -335,7 +335,7 @@ def index():
     routes = {
         "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
     }
     return routes[view]() if view in routes else recipe_list()
 
@@ -416,12 +416,17 @@ def recipe_list():
     if where: sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY r.created_at DESC"
     rows=con.execute(sql,tuple(params)).fetchall()
+    recipe_tags_by_id={}
+    for tr in con.execute("""SELECT rt.recipe_id,t.name,t.color
+        FROM recipe_tags rt JOIN tags t ON t.id=rt.tag_id
+        ORDER BY t.name COLLATE NOCASE""").fetchall():
+        recipe_tags_by_id.setdefault(tr["recipe_id"],[]).append(tr)
     tags=con.execute("""SELECT t.*,COUNT(rt.recipe_id) count FROM tags t
       LEFT JOIN recipe_tags rt ON rt.tag_id=t.id
       GROUP BY t.id ORDER BY t.name COLLATE NOCASE""").fetchall()
     con.close()
     return render_template("recipes.html",recipes=rows,safe_date=safe_date,title="Alle Rezepte",
-                           q=q,tags=tags,selected_tags=selected_tags)
+                           q=q,tags=tags,selected_tags=selected_tags,recipe_tags_by_id=recipe_tags_by_id)
 
 def new_recipe():
     if request.method=="POST":
@@ -733,6 +738,36 @@ def recipe_ai_image():
     con.close()
     return render_template("ai_image.html",recipe=recipe,generated=generated,error=error)
 
+def recipe_own_images():
+    rid=request.args.get("id",type=int)
+    con=db()
+    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not recipe:
+        con.close()
+        return redirect("./")
+
+    error=""
+    if request.method=="POST":
+        uploads=request.files.getlist("images")
+        added=0
+        for uploaded in uploads:
+            if uploaded and uploaded.filename:
+                try:
+                    filename=save_image(uploaded)
+                    if filename:
+                        add_recipe_gallery_image(con,rid,filename,"upload")
+                        added+=1
+                except Exception as exc:
+                    error=str(exc)
+        if added and not error:
+            con.close()
+            return redirect(f"?view=own_images&id={rid}")
+
+    gallery=con.execute("""SELECT * FROM recipe_images
+        WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
+    con.close()
+    return render_template("own_images.html",recipe=recipe,gallery=gallery,error=error)
+
 def recipe_image_cover():
     rid=request.args.get("id",type=int); iid=request.args.get("image_id",type=int)
     con=db()
@@ -778,13 +813,10 @@ def book_cover():
     if request.method=="POST":
         action=request.form.get("action","generate")
         if action=="generate":
-            if request.form.get("confirm_cost")!="1":
-                error="Bitte bestätige zuerst, dass für die KI-Covergenerierung API-Kosten entstehen können."
-            else:
-                try:
-                    generated=ai_generate_image(cookbook_cover_prompt(book["name"]),"cover")
-                except Exception as exc:
-                    error=str(exc)
+            try:
+                generated=ai_generate_image(cookbook_cover_prompt(book["name"]),"cover")
+            except Exception as exc:
+                error=str(exc)
         elif action=="use":
             filename=Path(request.form.get("filename","")).name
             if filename and (IMG_DIR/filename).exists():

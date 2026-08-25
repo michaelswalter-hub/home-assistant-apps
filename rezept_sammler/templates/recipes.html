@@ -5,6 +5,12 @@
 {% for r in recipes %}<article class="card recipe-card" onclick="location.href='?view=recipe&id={{r.id}}'">
 {% if r.image %}<img class="hero" src="images/{{r.image}}">{% else %}<div class="hero placeholder">🍽️</div>{% endif %}
 <div class="pad"><h2>{{r.title}}</h2>
+{% set card_tags=recipe_tags_by_id.get(r.id,[]) %}
+{% if card_tags %}
+<div class="card-tag-row">
+{% for tag in card_tags %}<span class="tag-pill" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}
+</div>
+{% endif %}
 {% if r.avg_rating is defined %}<div class="stars">{% set a=(r.avg_rating or 0)|round|int %}{{"★"*a}}{{"☆"*(5-a)}}</div>
 <p>🍳 {{r.cooked_count}}× gekocht</p>{% if r.last_cooked %}<small>Zuletzt: {{safe_date(r.last_cooked)}}</small>{% endif %}{% endif %}
 {% if r.book %}<small>📚 {{r.book}}</small>{% endif %}</div></article>

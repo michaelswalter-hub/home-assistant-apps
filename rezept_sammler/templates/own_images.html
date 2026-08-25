@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">REZEPTBILDER</p>
+    <h1>🖼️ Eigene Bilder</h1>
+    <p class="subtle">{{recipe.title}}</p>
+  </div>
+</div>
+
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+
+<section class="panel image-manager">
+  <div class="section-head">
+    <div>
+      <h2>Fotos hinzufügen</h2>
+      <p class="subtle">Du kannst mehrere Bilder gleichzeitig aus Fotomediathek oder Dateien auswählen.</p>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="image-upload-form">
+    <input type="file" name="images" accept="image/*" multiple required>
+    <button class="primary">＋ Bilder hinzufügen</button>
+  </form>
+
+  {% if gallery %}
+  <div class="own-gallery">
+    {% for img in gallery %}
+    <article class="own-image-card">
+      <img src="images/{{img.filename}}" alt="">
+      <div class="own-image-meta">
+        {% if img.is_cover %}
+          <span class="cover-badge">★ Titelbild</span>
+        {% else %}
+          <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>
+        {% endif %}
+        <a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Löschen</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-images">
+    <span>🖼️</span>
+    <p>Noch keine eigenen Bilder hinterlegt.</p>
+  </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <a href="?view=edit&id={{recipe.id}}">← Zurück zu Bearbeiten</a>
+    <a href="?view=ai_image&id={{recipe.id}}">✨ KI-Bild erzeugen</a>
+  </div>
+</section>
+{% endblock %}

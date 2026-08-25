@@ -32,35 +32,7 @@
 {% endif %}
 
 
-{% if recipe %}
-<section class="edit-images">
-<div class="section-head">
-  <div><label>Eigene Bilder</label><p class="subtle image-help">Du kannst mehrere Bilder gleichzeitig auswählen.</p></div>
-</div>
-<input type="file" name="images" accept="image/*" multiple>
 
-{% if gallery %}
-<div class="edit-gallery">
-{% for img in gallery %}
-<div class="edit-image-card">
-  <img src="images/{{img.filename}}" alt="">
-  <div class="edit-image-actions">
-    {% if img.is_cover %}
-      <span class="cover-badge">★ Titelbild</span>
-    {% else %}
-      <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Titelbild</a>
-    {% endif %}
-    <a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑</a>
-  </div>
-</div>
-{% endfor %}
-</div>
-{% endif %}
-</section>
-{% else %}
-<label>Rezeptbild</label>
-<input type="file" name="images" accept="image/*" multiple>
-{% endif %}
 
 <label>Zutaten</label>
 <textarea name="ingredients" placeholder="Eine Zutat pro Zeile">{{recipe.ingredients if recipe else ''}}</textarea>
@@ -133,6 +105,9 @@ renumberSteps();
 <section class="edit-management">
   <h2>Rezept verwalten</h2>
   <div class="manage-actions">
+    <a class="manage-card" href="?view=own_images&id={{recipe.id}}">
+      <span>🖼️</span><div><b>Eigene Bilder</b><small>Fotos hinzufügen, Titelbild wählen oder Bilder löschen.</small></div><i>›</i>
+    </a>
     <a class="manage-card" href="?view=ai_image&id={{recipe.id}}">
       <span>✨</span><div><b>KI-Bild erzeugen</b><small>Ein weiteres Bild zur Galerie hinzufügen.</small></div><i>›</i>
     </a>
