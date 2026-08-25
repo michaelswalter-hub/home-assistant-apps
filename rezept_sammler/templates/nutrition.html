@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">KI-NÄHRWERTE</p>
+    <h1>🥗 {{recipe.title}}</h1>
+    <p class="subtle">Geschätzte Werte auf Basis der Zutaten.</p>
+  </div>
+</div>
+
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+{% if success %}<div class="notice success">{{success}}</div>{% endif %}
+
+<section class="panel nutrition-calc">
+  {% if recipe.calories_serving or recipe.protein_g or recipe.carbs_g or recipe.fat_g %}
+  <div class="nutrition-grid large">
+    <div><b>{{recipe.calories_serving|round|int}}</b><span>kcal / Portion</span></div>
+    <div><b>{{recipe.protein_g|round(1)}}</b><span>g Eiweiß</span></div>
+    <div><b>{{recipe.carbs_g|round(1)}}</b><span>g Kohlenhydrate</span></div>
+    <div><b>{{recipe.fat_g|round(1)}}</b><span>g Fett</span></div>
+    <div><b>{{recipe.fiber_g|round(1)}}</b><span>g Ballaststoffe</span></div>
+  </div>
+  {% endif %}
+
+  <form method="post" class="nutrition-form">
+    <button class="primary">✨ Nährwerte mit KI berechnen</button>
+  </form>
+
+  <div class="ai-progress" hidden>
+    <div class="spinner"></div>
+    <b>KI berechnet die Nährwerte …</b>
+    <span>Das kann einen Moment dauern.</span>
+  </div>
+
+  <div class="form-actions">
+    <a class="secondary" href="?view=edit&id={{recipe.id}}">← Zurück zu Bearbeiten</a>
+  </div>
+</section>
+
+<script>
+document.querySelector('.nutrition-form')?.addEventListener('submit',e=>{
+  document.querySelector('.ai-progress').hidden=false;
+  const b=e.currentTarget.querySelector('button');
+  b.disabled=true;
+  b.textContent='Wird berechnet …';
+});
+</script>
+{% endblock %}

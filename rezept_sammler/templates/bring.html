@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">EINKAUFSLISTE</p>
+    <h1>🛒 Zutaten zu Bring!</h1>
+    <p class="subtle">{{recipe.title}}</p>
+  </div>
+</div>
+
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+{% if success %}<div class="notice success">{{success}}</div>{% endif %}
+
+<section class="panel form-card">
+{% if not bring_entity %}
+  <div class="notice error">
+    Noch keine Bring!-Liste ausgewählt.
+  </div>
+  <p class="subtle">Bitte zuerst unter Einstellungen die gewünschte Bring!-To-do-Liste auswählen.</p>
+  <a class="primary" href="?view=settings">⚙️ Zu den Einstellungen</a>
+{% else %}
+  <form method="post">
+    <div class="section-head">
+      <div>
+        <h2>Zutaten auswählen</h2>
+        <p class="subtle">Entferne den Haken bei Zutaten, die du bereits zu Hause hast.</p>
+      </div>
+      <div class="bulk-actions">
+        <button type="button" onclick="setAll(true)">Alle</button>
+        <button type="button" onclick="setAll(false)">Keine</button>
+      </div>
+    </div>
+
+    <div class="ingredient-checks">
+    {% for item in ingredients %}
+      <label>
+        <input type="checkbox" name="ingredient" value="{{item}}" checked>
+        <span>{{item}}</span>
+      </label>
+    {% else %}
+      <div class="empty-inline">Keine Zutaten im Rezept gefunden.</div>
+    {% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <a class="secondary" href="?view=recipe&id={{recipe.id}}">Abbrechen</a>
+      <button class="primary">🛒 Ausgewählte Zutaten hinzufügen</button>
+    </div>
+  </form>
+{% endif %}
+</section>
+
+<script>
+function setAll(state){
+  document.querySelectorAll('input[name="ingredient"]').forEach(x=>x.checked=state);
+}
+</script>
+{% endblock %}

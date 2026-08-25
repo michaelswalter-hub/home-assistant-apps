@@ -5,6 +5,40 @@
 
 <label>Rezeptname</label>
 <input name="title" required value="{{recipe.title if recipe else ''}}">
+{% if recipe %}
+<section class="edit-gallery-section">
+  <div class="section-head">
+    <div>
+      <label>Rezeptbilder</label>
+      <p class="subtle">Hier kannst du das Titelbild festlegen oder Bilder löschen.</p>
+    </div>
+    <a href="?view=own_images&id={{recipe.id}}">＋ Eigene Bilder hinzufügen</a>
+  </div>
+
+  {% if gallery %}
+  <div class="edit-gallery">
+    {% for img in gallery %}
+    <article class="edit-image-card">
+      <img src="images/{{img.filename}}" alt="">
+      <div class="edit-image-actions">
+        {% if img.is_cover %}
+          <span class="cover-badge">★ Titelbild</span>
+        {% else %}
+          <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>
+        {% endif %}
+        <a class="danger-link"
+           href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}"
+           onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Löschen</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-inline">Noch keine Bilder vorhanden.</div>
+  {% endif %}
+</section>
+{% endif %}
+
 <div class="meta-grid">
   <div><label>Portionen</label><input name="servings" value="{{recipe.servings if recipe else ''}}" placeholder="z. B. 4 Portionen"></div>
   <div><label>Vorbereitung (Min.)</label><input type="number" min="0" name="prep_minutes" value="{{recipe.prep_minutes if recipe else 0}}"></div>
@@ -64,39 +98,7 @@
 {% endif %}
 
 
-{% if recipe %}
-<section class="edit-gallery-section">
-  <div class="section-head">
-    <div>
-      <label>Rezeptbilder</label>
-      <p class="subtle">Hier kannst du das Titelbild festlegen oder Bilder löschen.</p>
-    </div>
-    <a href="?view=own_images&id={{recipe.id}}">＋ Eigene Bilder hinzufügen</a>
-  </div>
 
-  {% if gallery %}
-  <div class="edit-gallery">
-    {% for img in gallery %}
-    <article class="edit-image-card">
-      <img src="images/{{img.filename}}" alt="">
-      <div class="edit-image-actions">
-        {% if img.is_cover %}
-          <span class="cover-badge">★ Titelbild</span>
-        {% else %}
-          <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>
-        {% endif %}
-        <a class="danger-link"
-           href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}"
-           onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Löschen</a>
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-inline">Noch keine Bilder vorhanden.</div>
-  {% endif %}
-</section>
-{% endif %}
 {% if recipe %}
 <details class="nutrition-edit">
 <summary>🥗 Nährwerte manuell bearbeiten</summary>
@@ -122,9 +124,7 @@
     <a class="manage-card" href="?view=nutrition&id={{recipe.id}}">
       <span>🥗</span><div><b>Nährwerte mit KI berechnen</b><small>Kalorien und Makronährstoffe schätzen lassen.</small></div><i>›</i>
     </a>
-    <a class="manage-card" href="?view=bring&id={{recipe.id}}">
-      <span>🛒</span><div><b>Zutaten zu Bring!</b><small>Zutaten auswählen und an die Einkaufsliste senden.</small></div><i>›</i>
-    </a>
+    
     <a class="manage-card danger-manage" href="?view=delete&id={{recipe.id}}">
       <span>🗑</span><div><b>Rezept löschen</b><small>Rezept und zugehörige Daten entfernen.</small></div><i>›</i>
     </a>

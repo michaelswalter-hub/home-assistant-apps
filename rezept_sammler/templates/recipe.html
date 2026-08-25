@@ -3,20 +3,41 @@
 <div class="pad"><h1>{{recipe.title}}</h1><p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
 {% if recipe.source_url %}<p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>{% endif %}
 <div class="actions"><a class="primary" href="?view=cook&id={{recipe.id}}">👨‍🍳 Kochmodus</a>
-<a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a></div></div></article>
+<a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a><a class="primary-soft" href="?view=bring&id={{recipe.id}}">🛒 Zutaten zu Bring!</a></div></div></article>
 {% if gallery %}
 <section class="recipe-gallery">
 <div class="gallery-track">
 {% for img in gallery %}
 <figure class="gallery-slide" id="bild-{{img.id}}">
 <img src="images/{{img.filename}}" alt="{{recipe.title}}">
-<figcaption>
-{% if img.is_cover %}<span class="cover-badge">★ Titelbild</span>{% else %}<a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>{% endif %}
-<a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Bild löschen</a>
-</figcaption></figure>
+</figure>
 {% endfor %}
 </div>
 {% if gallery|length > 1 %}<div class="gallery-dots">{% for img in gallery %}<a href="#bild-{{img.id}}" aria-label="Bild {{loop.index}}"></a>{% endfor %}</div>{% endif %}
+</section>
+{% endif %}
+
+<section class="recipe-facts">
+  {% if recipe.prep_minutes or recipe.cook_minutes or recipe.total_minutes %}
+  <div class="fact-card"><span>⏱️</span><div><small>Zeit</small>
+    {% if recipe.total_minutes %}<b>{{human_minutes(recipe.total_minutes)}}</b>
+    {% elif recipe.prep_minutes or recipe.cook_minutes %}<b>{{human_minutes((recipe.prep_minutes or 0)+(recipe.cook_minutes or 0))}}</b>{% endif %}
+    <em>{% if recipe.prep_minutes %}Vorbereitung {{human_minutes(recipe.prep_minutes)}}{% endif %}{% if recipe.cook_minutes %} · Kochen {{human_minutes(recipe.cook_minutes)}}{% endif %}</em>
+  </div></div>{% endif %}
+  {% if recipe.servings %}<div class="fact-card"><span>👥</span><div><small>Portionen</small><b>{{recipe.servings}}</b></div></div>{% endif %}
+  {% if recipe.calories_serving %}<div class="fact-card"><span>🔥</span><div><small>Kalorien</small><b>{{recipe.calories_serving|round|int}} kcal</b><em>pro Portion</em></div></div>{% endif %}
+</section>
+
+{% if recipe.calories_serving or recipe.protein_g or recipe.carbs_g or recipe.fat_g %}
+<section class="panel nutrition-overview">
+  <div class="section-head"><h2>🥗 Nährwerte</h2><small class="subtle">geschätzte Werte pro Portion</small></div>
+  <div class="nutrition-grid">
+    <div><b>{{recipe.calories_serving|round|int}}</b><span>kcal</span></div>
+    <div><b>{{recipe.protein_g|round(1)}}</b><span>g Eiweiß</span></div>
+    <div><b>{{recipe.carbs_g|round(1)}}</b><span>g Kohlenhydrate</span></div>
+    <div><b>{{recipe.fat_g|round(1)}}</b><span>g Fett</span></div>
+    <div><b>{{recipe.fiber_g|round(1)}}</b><span>g Ballaststoffe</span></div>
+  </div>
 </section>
 {% endif %}
 <div class="cols"><section class="card pad"><h2>🥕 Zutaten</h2><ul>{% for x in recipe.ingredients.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ul></section>

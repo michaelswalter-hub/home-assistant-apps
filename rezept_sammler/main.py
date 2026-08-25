@@ -1,7 +1,7 @@
 from flask import Flask, request, redirect, render_template, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
-import sqlite3, re, uuid, json, socket, ipaddress, html, base64, mimetypes
+import sqlite3, re, uuid, json, socket, ipaddress, html, base64, mimetypes, os
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urljoin
@@ -34,6 +34,17 @@ def init_db():
     ensure_column(con, "recipes", "image_source", "TEXT DEFAULT ''")
     ensure_column(con, "recipes", "source_url", "TEXT DEFAULT ''")
     ensure_column(con, "recipes", "source_name", "TEXT DEFAULT ''")
+    ensure_column(con, "recipes", "servings", "TEXT DEFAULT ''")
+    ensure_column(con, "recipes", "prep_minutes", "INTEGER DEFAULT 0")
+    ensure_column(con, "recipes", "cook_minutes", "INTEGER DEFAULT 0")
+    ensure_column(con, "recipes", "total_minutes", "INTEGER DEFAULT 0")
+    ensure_column(con, "recipes", "calories_total", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "calories_serving", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "protein_g", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "carbs_g", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "fat_g", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "fiber_g", "REAL DEFAULT 0")
+    ensure_column(con, "recipes", "nutrition_updated_at", "TEXT DEFAULT ''")
     con.execute("""CREATE TABLE IF NOT EXISTS notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT, recipe_id INTEGER NOT NULL,
         note TEXT DEFAULT '', rating INTEGER DEFAULT 0, cooked_at TEXT NOT NULL)""")
@@ -110,7 +121,8 @@ def load_settings():
         "text_model":"gpt-5",
         "image_model":"gpt-image-1",
         "image_quality":"medium",
-        "auto_ai_image":False
+        "auto_ai_image":False,
+        "bring_entity":""
     }
     try:
         if SETTINGS_FILE.exists():
@@ -204,7 +216,10 @@ Gib ausschließlich valides JSON zurück:
  "title": "Rezeptname",
  "ingredients": ["eine Zutat pro Eintrag"],
  "steps": ["ein vollständiger Arbeitsschritt pro Eintrag"],
- "servings": "Portionsangabe oder leer"
+ "servings": "Portionsangabe oder leer",
+ "prep_minutes": Zahl oder 0,
+ "cook_minutes": Zahl oder 0,
+ "total_minutes": Zahl oder 0
 }
 Falls das PDF ein Scan ist, lies den sichtbaren Text. Entferne Werbung, Kopf-/Fußzeilen,
 Seitenzahlen und sonstige nicht zum Rezept gehörende Inhalte.
@@ -225,7 +240,10 @@ Seitenzahlen und sonstige nicht zum Rezept gehörende Inhalte.
         "title":str(obj.get("title","")).strip(),
         "ingredients":[str(x).strip() for x in obj.get("ingredients",[]) if str(x).strip()],
         "steps":[str(x).strip() for x in obj.get("steps",[]) if str(x).strip()],
-        "servings":str(obj.get("servings","")).strip()
+        "servings":str(obj.get("servings","")).strip(),
+        "prep_minutes":int(obj.get("prep_minutes",0) or 0),
+        "cook_minutes":int(obj.get("cook_minutes",0) or 0),
+        "total_minutes":int(obj.get("total_minutes",0) or 0)
     }
 
 def ai_scan_recipe(file):
@@ -236,7 +254,10 @@ def ai_scan_recipe(file):
  "title": "Rezeptname",
  "ingredients": ["eine Zutat pro Eintrag"],
  "steps": ["ein vollständiger Arbeitsschritt pro Eintrag"],
- "servings": "Portionsangabe oder leer"
+ "servings": "Portionsangabe oder leer",
+ "prep_minutes": Zahl oder 0,
+ "cook_minutes": Zahl oder 0,
+ "total_minutes": Zahl oder 0
 }
 Übernimm Mengen und Einheiten möglichst exakt. Entferne Werbung, Seitenköpfe, Bildunterschriften und sonstigen Zeitungstext. Erfinde keine fehlenden Angaben."""
     payload={
@@ -255,7 +276,10 @@ def ai_scan_recipe(file):
         "title":str(obj.get("title","")).strip(),
         "ingredients":[str(x).strip() for x in obj.get("ingredients",[]) if str(x).strip()],
         "steps":[str(x).strip() for x in obj.get("steps",[]) if str(x).strip()],
-        "servings":str(obj.get("servings","")).strip()
+        "servings":str(obj.get("servings","")).strip(),
+        "prep_minutes":int(obj.get("prep_minutes",0) or 0),
+        "cook_minutes":int(obj.get("cook_minutes",0) or 0),
+        "total_minutes":int(obj.get("total_minutes",0) or 0)
     }
 
 def ai_generate_image(prompt, prefix="ai"):
@@ -294,6 +318,121 @@ def cookbook_cover_prompt(name):
     return f"""Gestalte ein hochwertiges quadratisches Kochbuch-Cover für „{name}“.
 Stil: moderne Editorial-Food-Fotografie mit passenden kulinarischen Motiven, elegant, warm, hochwertig.
 Keine lesbare Schrift, keine Logos, keine Personen. Das Bild soll als Kochbuchcover funktionieren."""
+
+def int_form(name, default=0):
+    try:
+        return max(0,int(request.form.get(name,default) or default))
+    except Exception:
+        return default
+
+def float_form(name, default=0):
+    try:
+        return max(0,float(str(request.form.get(name,default) or default).replace(",", ".")))
+    except Exception:
+        return default
+
+def iso_duration_minutes(value):
+    """Parse simple ISO-8601 durations such as PT15M, PT1H30M."""
+    if not value:
+        return 0
+    if isinstance(value,(int,float)):
+        return int(value)
+    text=str(value).strip().upper()
+    m=re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?",text)
+    if not m:
+        return 0
+    days=int(m.group(1) or 0); hours=int(m.group(2) or 0); mins=int(m.group(3) or 0)
+    secs=int(m.group(4) or 0)
+    return days*1440+hours*60+mins+(1 if secs>=30 else 0)
+
+def human_minutes(value):
+    try: value=int(value or 0)
+    except: value=0
+    if value<=0: return ""
+    h,m=divmod(value,60)
+    if h and m: return f"{h} Std. {m} Min."
+    if h: return f"{h} Std."
+    return f"{m} Min."
+
+
+app.jinja_env.globals["human_minutes"]=human_minutes
+
+def ha_api(path, payload=None, method="GET", timeout=30):
+    token=os.environ.get("SUPERVISOR_TOKEN","")
+    if not token:
+        raise ValueError("Home-Assistant-API ist für diese App nicht verfügbar.")
+    data=None if payload is None else json.dumps(payload).encode("utf-8")
+    req=Request("http://supervisor/core/api"+path,data=data,method=method,headers={
+        "Authorization":"Bearer "+token,
+        "Content-Type":"application/json"
+    })
+    try:
+        with urlopen(req,timeout=timeout) as response:
+            raw=response.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+    except HTTPError as exc:
+        try: detail=exc.read().decode("utf-8")
+        except: detail=""
+        raise ValueError(f"Home Assistant API-Fehler {exc.code}: {detail[:250]}")
+
+def ha_todo_entities():
+    try:
+        states=ha_api("/states")
+        return sorted([
+            {"entity_id":x.get("entity_id",""),"name":x.get("attributes",{}).get("friendly_name") or x.get("entity_id","")}
+            for x in states if str(x.get("entity_id","")).startswith("todo.")
+        ], key=lambda x:x["name"].lower())
+    except Exception:
+        return []
+
+def bring_add_items(entity_id, ingredients):
+    entity_id=(entity_id or "").strip()
+    if not entity_id.startswith("todo."):
+        raise ValueError("Bitte unter Einstellungen eine gültige Bring!-To-do-Liste auswählen.")
+    items=[x.strip() for x in ingredients if x.strip()]
+    if not items:
+        raise ValueError("Dieses Rezept enthält keine Zutaten.")
+    failures=[]
+    for item in items:
+        try:
+            ha_api("/services/todo/add_item",{
+                "target":{"entity_id":entity_id},
+                "data":{"item":item}
+            },"POST",20)
+        except Exception as exc:
+            failures.append(str(exc))
+    if failures:
+        raise ValueError(f"{len(failures)} Einträge konnten nicht übertragen werden.")
+    return len(items)
+
+def ai_calculate_nutrition(recipe):
+    settings=load_settings()
+    prompt=f"""Schätze die Nährwerte für dieses Rezept sachlich und plausibel.
+Titel: {recipe['title']}
+Portionen: {recipe['servings'] or 'nicht angegeben'}
+Zutaten:
+{recipe['ingredients']}
+
+Gib ausschließlich valides JSON zurück:
+{{
+ "calories_total": Zahl,
+ "calories_serving": Zahl,
+ "protein_g": Zahl pro Portion,
+ "carbs_g": Zahl pro Portion,
+ "fat_g": Zahl pro Portion,
+ "fiber_g": Zahl pro Portion
+}}
+Wenn Portionszahl fehlt, schätze eine sinnvolle Portionszahl nur zur Berechnung.
+Die Werte sind Näherungen, keine medizinischen Angaben."""
+    result=openai_json("/responses",{
+        "model":settings.get("text_model") or "gpt-5",
+        "input":prompt
+    },timeout=90)
+    obj=parse_json_text(response_text(result))
+    def n(k):
+        try:return round(float(obj.get(k,0) or 0),1)
+        except:return 0
+    return {k:n(k) for k in ["calories_total","calories_serving","protein_g","carbs_g","fat_g","fiber_g"]}
 
 def form_steps():
     """Zubereitungsschritte aus dynamischen Formularfeldern normalisieren."""
@@ -335,7 +474,7 @@ def index():
     routes = {
         "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
     }
     return routes[view]() if view in routes else recipe_list()
 
@@ -366,10 +505,13 @@ def pdf_import():
             else:
                 con=db()
                 cur=con.execute("""INSERT INTO recipes
-                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name)
-                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
+                     servings,prep_minutes,cook_minutes,total_minutes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (title,request.form.get("ingredients","").strip(),form_steps(),"",
-                     datetime.now().isoformat(),"","","","PDF-Import"))
+                     datetime.now().isoformat(),"","","","PDF-Import",
+                     request.form.get("servings","").strip(),int_form("prep_minutes"),
+                     int_form("cook_minutes"),int_form("total_minutes")))
                 rid=cur.lastrowid
 
                 for cid in request.form.getlist("cookbooks"):
@@ -432,27 +574,34 @@ def new_recipe():
     if request.method=="POST":
         title=request.form.get("title","").strip()
         if title:
-            image=save_image(request.files.get("image"))
             con=db()
             cur=con.execute("""INSERT INTO recipes
-                (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name)
-                VALUES(?,?,?,?,?,?,?,?,?)""",
-                (title,request.form.get("ingredients","").strip(),
-                 form_steps(),request.form.get("book","").strip(),
-                 datetime.now().isoformat(),image or "","upload" if image else "",
-                 request.form.get("source_url","").strip(),request.form.get("source_name","").strip()))
+                (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
+                 servings,prep_minutes,cook_minutes,total_minutes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (title,request.form.get("ingredients","").strip(),form_steps(),"",
+                 datetime.now().isoformat(),"","",
+                 request.form.get("source_url","").strip(),request.form.get("source_name","").strip(),
+                 request.form.get("servings","").strip(),
+                 int_form("prep_minutes"),int_form("cook_minutes"),int_form("total_minutes")))
             rid=cur.lastrowid
             for cid in request.form.getlist("cookbooks"):
                 con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
             for tid in request.form.getlist("tags"):
                 con.execute("INSERT OR IGNORE INTO recipe_tags VALUES(?,?)",(rid,int(tid)))
+            for uploaded in request.files.getlist("images"):
+                if uploaded and uploaded.filename:
+                    filename=save_image(uploaded)
+                    if filename:add_recipe_gallery_image(con,rid,filename,"upload")
             con.commit(); con.close()
             return redirect(f"?view=recipe&id={rid}")
     con=db()
     cookbooks=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
     tags=con.execute("SELECT * FROM tags ORDER BY name COLLATE NOCASE").fetchall()
     con.close()
-    return render_template("edit.html",recipe=None,cookbooks=cookbooks,selected_cookbooks=set(),tags=tags,selected_tags=set(),steps=[])
+    return render_template("edit.html",recipe=None,cookbooks=cookbooks,selected_cookbooks=set(),
+        tags=tags,selected_tags=set(),steps=[],gallery=[])
+
 
 def recipe_detail():
     rid=request.args.get("id",type=int); con=db()
@@ -484,12 +633,18 @@ def edit_recipe():
 
     if request.method=="POST":
         con.execute("""UPDATE recipes SET title=?,ingredients=?,steps=?,book='',
-            source_url=?,source_name=? WHERE id=?""",
+            source_url=?,source_name=?,servings=?,prep_minutes=?,cook_minutes=?,total_minutes=?,
+            calories_total=?,calories_serving=?,protein_g=?,carbs_g=?,fat_g=?,fiber_g=?
+            WHERE id=?""",
             (request.form.get("title","").strip(),
              request.form.get("ingredients","").strip(),
              form_steps(),
              request.form.get("source_url","").strip(),
              request.form.get("source_name","").strip(),
+             request.form.get("servings","").strip(),
+             int_form("prep_minutes"),int_form("cook_minutes"),int_form("total_minutes"),
+             float_form("calories_total"),float_form("calories_serving"),
+             float_form("protein_g"),float_form("carbs_g"),float_form("fat_g"),float_form("fiber_g"),
              rid))
 
         con.execute("DELETE FROM recipe_cookbooks WHERE recipe_id=?",(rid,))
@@ -680,7 +835,8 @@ def settings_page():
                 "text_model":request.form.get("text_model","gpt-5").strip() or "gpt-5",
                 "image_model":request.form.get("image_model","gpt-image-1").strip() or "gpt-image-1",
                 "image_quality":request.form.get("image_quality","medium") if request.form.get("image_quality","medium") in ("low","medium","high") else "medium",
-                "auto_ai_image":request.form.get("auto_ai_image")=="1"
+                "auto_ai_image":request.form.get("auto_ai_image")=="1",
+                "bring_entity":request.form.get("bring_entity","").strip()
             }
             if request.form.get("clear_key")=="1":
                 data["api_key"]=""
@@ -702,7 +858,8 @@ def settings_page():
     cookbook_rows=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
     con.close()
     return render_template("settings.html",settings=current,masked_key=masked_key(current.get("api_key","")),
-                           message=message,error=error,tags=tag_rows,cookbooks=cookbook_rows,colors=TAG_COLORS_EXT)
+                           message=message,error=error,tags=tag_rows,cookbooks=cookbook_rows,
+                           colors=TAG_COLORS_EXT,todo_entities=ha_todo_entities())
 
 def scan_recipe():
     preview=None; error=""
@@ -724,10 +881,13 @@ def scan_recipe():
             else:
                 con=db()
                 cur=con.execute("""INSERT INTO recipes
-                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name)
-                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
+                     servings,prep_minutes,cook_minutes,total_minutes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (title,request.form.get("ingredients","").strip(),form_steps(),"",
-                     datetime.now().isoformat(),"","","","KI-Scan"))
+                     datetime.now().isoformat(),"","","","KI-Scan",
+                     request.form.get("servings","").strip(),int_form("prep_minutes"),
+                     int_form("cook_minutes"),int_form("total_minutes")))
                 rid=cur.lastrowid
                 for cid in request.form.getlist("cookbooks"):
                     con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
@@ -779,6 +939,67 @@ def recipe_ai_image():
                 return redirect(f"?view=recipe&id={rid}")
     con.close()
     return render_template("ai_image.html",recipe=recipe,generated=generated,error=error)
+
+def recipe_nutrition():
+    rid=request.args.get("id",type=int)
+    con=db()
+    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not recipe:
+        con.close()
+        return redirect("./")
+
+    error=""
+    success=""
+    if request.method=="POST":
+        try:
+            values=ai_calculate_nutrition(recipe)
+            con.execute("""UPDATE recipes SET calories_total=?,calories_serving=?,
+                protein_g=?,carbs_g=?,fat_g=?,fiber_g=?,nutrition_updated_at=?
+                WHERE id=?""",
+                (values["calories_total"],values["calories_serving"],
+                 values["protein_g"],values["carbs_g"],values["fat_g"],values["fiber_g"],
+                 datetime.now().isoformat(),rid))
+            con.commit()
+            recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+            success="Nährwerte wurden berechnet und gespeichert."
+        except Exception as exc:
+            error=str(exc)
+
+    con.close()
+    return render_template("nutrition.html",recipe=recipe,error=error,success=success)
+
+
+def recipe_bring():
+    rid=request.args.get("id",type=int)
+    con=db()
+    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    con.close()
+    if not recipe:
+        return redirect("./")
+
+    settings=load_settings()
+    ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines() if x.strip()]
+    error=""
+    success=""
+
+    if request.method=="POST":
+        selected=[x.strip() for x in request.form.getlist("ingredient") if x.strip()]
+        if not selected:
+            error="Bitte mindestens eine Zutat auswählen."
+        else:
+            try:
+                count=bring_add_items(settings.get("bring_entity",""),selected)
+                success=f"{count} ausgewählte Zutaten wurden zu Bring! hinzugefügt."
+            except Exception as exc:
+                error=str(exc)
+
+    return render_template("bring.html",
+        recipe=recipe,
+        ingredients=ingredients,
+        error=error,
+        success=success,
+        bring_entity=settings.get("bring_entity",""))
+
 
 def recipe_own_images():
     rid=request.args.get("id",type=int)
@@ -1142,6 +1363,9 @@ def parse_recipe_url(url):
         "steps": steps,
         "steps_list": _instructions_list(recipe.get("recipeInstructions")),
         "servings": str(servings).strip(),
+        "prep_minutes": iso_duration_minutes(recipe.get("prepTime")),
+        "cook_minutes": iso_duration_minutes(recipe.get("cookTime")),
+        "total_minutes": iso_duration_minutes(recipe.get("totalTime")),
         "source_url": url.strip(),
         "source_name": _site_name(page_html, url),
         "image_url": _recipe_image_url(recipe, url, page_html),
@@ -1171,11 +1395,14 @@ def import_recipe():
                 image=_download_recipe_image(image_url) if image_url else ""
                 con = db()
                 cur = con.execute("""INSERT INTO recipes
-                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name)
-                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
+                     servings,prep_minutes,cook_minutes,total_minutes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (title,request.form.get("ingredients","").strip(),form_steps(),"",
                      datetime.now().isoformat(),image,"web" if image else "",
-                     request.form.get("source_url","").strip(),request.form.get("source_name","").strip())
+                     request.form.get("source_url","").strip(),request.form.get("source_name","").strip(),
+                     request.form.get("servings","").strip(),
+                     int_form("prep_minutes"),int_form("cook_minutes"),int_form("total_minutes"))
                 )
                 rid = cur.lastrowid
                 if image:

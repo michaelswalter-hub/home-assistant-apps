@@ -119,3 +119,10 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .edit-save-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:20px}
 .edit-save-actions .secondary{margin-right:auto}
 @media(max-width:560px){.edit-save-actions{display:grid;grid-template-columns:1fr 1fr}.edit-save-actions a,.edit-save-actions button{text-align:center;width:100%}}
+
+.primary-soft{background:color-mix(in srgb,var(--accent) 12%,var(--card));color:var(--accent)!important;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border))!important}
+.edit-gallery-section{margin:14px 0 18px!important;padding-top:0!important;border-top:0!important}
+.edit-gallery-section .section-head{margin-bottom:8px}
+.bulk-actions{display:flex;gap:6px}.bulk-actions button{padding:7px 10px}
+.nutrition-calc{max-width:760px;margin:auto;text-align:center}.nutrition-grid.large{margin-bottom:20px}
+.nutrition-form{margin:18px 0}.nutrition-form button{min-width:240px}
