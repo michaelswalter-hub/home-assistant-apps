@@ -75,6 +75,10 @@ def safe_date(iso):
 
 def monday_for(d): return d - timedelta(days=d.weekday())
 
+def safe_book_color(v):
+    v=(v or "").strip().lower()
+    return v if v in BOOK_COLORS else BOOK_COLORS[0]
+
 def safe_tag_color(v):
     v=(v or "").strip().lower()
     return v if v in TAG_COLORS else TAG_COLORS[0]
@@ -402,7 +406,7 @@ def book_new():
     if request.method=="POST":
         name=request.form.get("name","").strip()
         if name:
-            con=db(); con.execute("INSERT OR IGNORE INTO cookbooks(name,color) VALUES(?,?)",(name,request.form.get("color") or BOOK_COLORS[0])); con.commit(); con.close()
+            con=db(); con.execute("INSERT OR IGNORE INTO cookbooks(name,color) VALUES(?,?)",(name,safe_book_color(request.form.get("color")))); con.commit(); con.close()
         return redirect("?view=books")
     return render_template("book_form.html",mode="new",cookbook=None)
 
@@ -412,7 +416,7 @@ def book_rename():
     if request.method=="POST":
         name=request.form.get("name","").strip()
         if name:
-            try: con.execute("UPDATE cookbooks SET name=?,color=? WHERE id=?",(name,request.form.get("color") or BOOK_COLORS[0],cid)); con.commit()
+            try: con.execute("UPDATE cookbooks SET name=?,color=? WHERE id=?",(name,safe_book_color(request.form.get("color")),cid)); con.commit()
             except sqlite3.IntegrityError: pass
         con.close(); return redirect("?view=books")
     con.close(); return render_template("book_form.html",mode="rename",cookbook=cb)
@@ -501,9 +505,10 @@ def settings_page():
                 error=str(exc)
     con=db()
     tag_rows=con.execute("SELECT * FROM tags ORDER BY name COLLATE NOCASE").fetchall()
+    cookbook_rows=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
     con.close()
     return render_template("settings.html",settings=current,masked_key=masked_key(current.get("api_key","")),
-                           message=message,error=error,tags=tag_rows,colors=TAG_COLORS_EXT)
+                           message=message,error=error,tags=tag_rows,cookbooks=cookbook_rows,colors=TAG_COLORS_EXT)
 
 def scan_recipe():
     preview=None; error=""

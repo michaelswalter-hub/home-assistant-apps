@@ -28,4 +28,17 @@
 </div>
 </section>
 </div>
+<section class="panel settings-wide">
+<div class="section-head"><div><h2>📚 Kochbücher</h2><p class="subtle">Kochbücher, Farben und KI-Cover verwalten.</p></div><a class="primary small" href="?view=book_new">＋ Kochbuch</a></div>
+<div class="settings-books">
+{% for b in cookbooks %}
+<div class="settings-book">
+<span class="book-color-dot" style="--book-color:{{b.color or '#6f5bd3'}}"></span>
+<div><b>{{b.name}}</b><small>{% if b.cover %}KI-/Coverbild vorhanden{% else %}Kein Coverbild{% endif %}</small></div>
+<div class="settings-book-actions"><a href="?view=book_rename&id={{b.id}}">✏️ Bearbeiten</a><a href="?view=book_cover&id={{b.id}}">✨ Cover</a><a class="danger-link" href="?view=book_delete&id={{b.id}}">🗑</a></div>
+</div>{% else %}<p class="subtle">Noch keine Kochbücher.</p>{% endfor %}
+</div></section>
+<section class="panel settings-wide mobile-more">
+<h2>Weitere Funktionen</h2><div class="more-links"><a href="?view=import">🌐 Rezept importieren</a><a href="?view=scan">📷 Rezept scannen</a></div>
+</section>
 {% endblock %}
