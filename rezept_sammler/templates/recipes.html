@@ -5,6 +5,9 @@
     <h1>{{title or "Alle Rezepte"}}</h1>
     {% if cookbook %}<p class="subtle">Rezepte aus „{{cookbook.name}}“</p>{% endif %}
   </div>
+  {% if not cookbook %}
+  <a class="recipe-plus-button" href="?view=new" aria-label="Rezept hinzufügen" title="Rezept hinzufügen">＋</a>
+  {% endif %}
 </div>
 
 <form class="recipe-search" method="get">

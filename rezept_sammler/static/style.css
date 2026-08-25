@@ -222,3 +222,29 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .recipe-actionbar .new-recipe-mini{display:inline-flex!important;visibility:visible!important;opacity:1!important}
 
 .photo-scan-progress{margin-top:18px}.photo-scan-progress span{color:var(--muted);font-size:13px;text-align:center}
+
+/* 0.5.12 – Plus nur in der Rezeptübersicht */
+.recipe-plus-button{
+  flex:0 0 auto;
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  text-decoration:none;
+  font-size:24px;
+  line-height:1;
+  font-weight:500;
+  color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 6px 16px rgba(92,108,242,.22);
+}
+.recipe-plus-button:hover{transform:translateY(-1px)}
+@media(max-width:600px){
+  .recipe-plus-button{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    font-size:22px;
+  }
+}

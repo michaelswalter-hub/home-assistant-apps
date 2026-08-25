@@ -27,7 +27,7 @@ document.querySelector('.photo-scan-form')?.addEventListener('submit',e=>{
 {% else %}
 <section class="panel">
 <h2>Vorschau prüfen</h2><p class="subtle">Vor dem Speichern kannst du alles korrigieren.</p>
-<form method="post"><input type="hidden" name="action" value="save"><input type="hidden" name="scan_image" value="{{preview.scan_image or '')}}">
+<form method="post"><input type="hidden" name="action" value="save"><input type="hidden" name="scan_image" value="{{preview.scan_image or ''}}">
 <label>Titel</label><input name="title" value="{{preview.title}}" required>
 <div class="meta-grid import-meta">
 <div><label>Portionen</label><input name="servings" value="{{preview.servings}}"></div>
