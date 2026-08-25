@@ -337,3 +337,9 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
   .portion-toolbar{align-items:flex-start}
   .portion-hint{max-width:145px}
 }
+
+/* 0.5.21 – passende Zutaten direkt am Kochschritt */
+.step-ingredients{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.step-ingredients>small{display:block;color:var(--muted);font-weight:700;margin-bottom:7px}
+.step-ingredient-list{display:flex;flex-wrap:wrap;gap:6px}
+.step-ingredient-list span{display:inline-flex;padding:6px 9px;border-radius:10px;background:var(--bg);border:1px solid var(--border);font-size:13px}

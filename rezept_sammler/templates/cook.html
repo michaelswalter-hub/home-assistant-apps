@@ -2,6 +2,16 @@
 {% if recipe.image %}<img class="cook-hero" src="images/{{recipe.image}}" alt="">{% endif %}
 <h1>👨‍🍳 {{recipe.title}}</h1>
 {% if recipe.total_minutes %}<p class="subtle">⏱️ {{human_minutes(recipe.total_minutes)}}</p>{% endif %}<a href="?view=recipe&id={{recipe.id}}">← Zurück</a></section>
-{% for s in steps %}<section class="step" id="step{{loop.index}}"><label class="step-line"><input type="checkbox" onchange="this.closest('.step').classList.toggle('done',this.checked)"><span><b>Schritt {{loop.index}}</b><p>{{s.text}}</p>
+{% for s in steps %}<section class="step" id="step{{loop.index}}"><label class="step-line"><input type="checkbox" onchange="this.closest('.step').classList.toggle('done',this.checked)"><span><b>Schritt {{loop.index}}</b><p>{{s.text}}
+{% if s.ingredients %}
+<div class="step-ingredients">
+  <small>🥕 Für diesen Schritt</small>
+  <div class="step-ingredient-list">
+  {% for ingredient in s.ingredients %}
+    <span>{{ingredient}}</span>
+  {% endfor %}
+  </div>
+</div>
+{% endif %}</p>
 {% if s.seconds %}<button type="button" onclick="timer({{s.seconds}},'t{{loop.index}}')">⏱ Timer starten</button><strong class="timer" id="t{{loop.index}}"></strong>{% endif %}</span></label></section>{% endfor %}
 <script>function timer(n,id){let e=document.getElementById(id);function u(){let m=Math.floor(n/60),s=n%60;e.textContent=n<=0?"🔔 Fertig!":m+":"+String(s).padStart(2,"0");if(n-- >0)setTimeout(u,1000);else if(navigator.vibrate)navigator.vibrate([300,200,300])}u()}</script>{% endblock %}

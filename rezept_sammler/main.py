@@ -744,6 +744,7 @@ def new_recipe():
 
 def recipe_detail():
     rid=request.args.get("id",type=int); con=db()
+    ensure_ingredient_state_table(con)
     r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
     if not r:
         con.close()
@@ -1118,12 +1119,21 @@ def recipe_nutrition():
     return render_template("nutrition.html",recipe=recipe,error=error,success=success)
 
 
+def ensure_ingredient_state_table(con):
+    con.execute("""CREATE TABLE IF NOT EXISTS ingredient_state (
+        recipe_id INTEGER NOT NULL,
+        ingredient TEXT NOT NULL,
+        checked INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(recipe_id, ingredient))""")
+    con.commit()
+
 def ingredient_toggle():
     rid=request.args.get("id",type=int)
     ingredient=request.form.get("ingredient","").strip()
     checked=1 if request.form.get("checked")=="1" else 0
     if rid and ingredient:
         con=db()
+        ensure_ingredient_state_table(con)
         con.execute("""INSERT INTO ingredient_state(recipe_id,ingredient,checked)
             VALUES(?,?,?)
             ON CONFLICT(recipe_id,ingredient) DO UPDATE SET checked=excluded.checked""",
@@ -1133,30 +1143,46 @@ def ingredient_toggle():
 
 def recipe_bring():
     rid=request.args.get("id",type=int)
-    con=db()
-    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
-    if not recipe:
-        con.close()
-        return redirect("./")
+    error=""
+    success=""
+    recipe=None
+    checked=set()
 
-    checked={x["ingredient"] for x in con.execute(
-        "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
-    con.close()
+    try:
+        con=db()
+        ensure_ingredient_state_table(con)
+        recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+        if not recipe:
+            con.close()
+            return redirect("./")
+        checked={x["ingredient"] for x in con.execute(
+            "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
+        con.close()
+    except Exception as exc:
+        try: con.close()
+        except: pass
+        return render_template("bring.html",
+            recipe={"id":rid,"title":"Rezept"},
+            ingredients=[],error=f"Datenbankfehler: {exc}",success="",
+            todo_entities=[],selected_entity="")
 
     settings=load_settings()
-    todo_entities=ha_todo_entities()
+    try:
+        todo_entities=ha_todo_entities()
+    except Exception as exc:
+        todo_entities=[]
+        error=f"Home-Assistant-Listen konnten nicht geladen werden: {exc}"
+
     all_ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines()
                      if x.strip() and not re.fullmatch(r"-{3,}",x.strip())
                      and not re.fullmatch(r"\*\*(.+?)\*\*",x.strip())]
     ingredients=[x for x in all_ingredients if x not in checked]
 
-    error=""
-    success=""
     selected_entity=(request.form.get("bring_entity","").strip()
                      if request.method=="POST"
                      else settings.get("bring_entity","").strip())
 
-    if request.method=="POST":
+    if request.method=="POST" and not error:
         if not selected_entity:
             error="Bitte zuerst eine Einkaufsliste auswählen."
         elif not ingredients:
@@ -1172,12 +1198,8 @@ def recipe_bring():
                 error=str(exc)
 
     return render_template("bring.html",
-        recipe=recipe,
-        ingredients=ingredients,
-        error=error,
-        success=success,
-        todo_entities=todo_entities,
-        selected_entity=selected_entity)
+        recipe=recipe,ingredients=ingredients,error=error,success=success,
+        todo_entities=todo_entities,selected_entity=selected_entity)
 
 
 def recipe_own_images():
@@ -1601,6 +1623,61 @@ def import_recipe():
     return render_template("import.html", preview=preview, error=error, cookbooks=cookbooks, tags=tags)
 
 
+def ingredient_keywords(line):
+    text=re.sub(r"\*\*|#+|\[|\]"," ",str(line or "")).lower()
+    text=re.sub(r"^\s*[\d\s½¼¾⅓⅔⅛⅜⅝⅞/.,-]+\s*","",text)
+    # Remove common units and filler words.
+    stop={
+        "g","kg","mg","ml","l","cl","dl","el","tl","teelöffel","esslöffel",
+        "stück","stk","scheibe","scheiben","dose","dosen","packung","päckchen",
+        "bund","prise","tasse","tassen","becher","glas","gläser",
+        "frisch","frische","frischer","frisches","klein","kleine","kleiner",
+        "groß","große","großer","etwas","nach","geschmack","ca"
+    }
+    words=[w for w in re.findall(r"[a-zäöüß]{3,}",text) if w not in stop]
+    # Prefer the more characteristic tail words but keep unique order.
+    out=[]
+    for w in words:
+        stem=w
+        # light German plural normalization for matching
+        for suffix in ("ern","en","er","es","e","n","s"):
+            if len(stem)>5 and stem.endswith(suffix):
+                stem=stem[:-len(suffix)]
+                break
+        if len(stem)>=3 and stem not in out:
+            out.append(stem)
+    return out
+
+def ingredients_for_step(step, ingredient_text):
+    step_l=str(step or "").lower()
+    step_words=set()
+    for w in re.findall(r"[a-zäöüß]{3,}",step_l):
+        stem=w
+        for suffix in ("ern","en","er","es","e","n","s"):
+            if len(stem)>5 and stem.endswith(suffix):
+                stem=stem[:-len(suffix)]
+                break
+        step_words.add(stem)
+
+    matches=[]
+    for group in ingredient_groups(ingredient_text):
+        for line in group.get("items",[]):
+            keys=ingredient_keywords(line)
+            if not keys:
+                continue
+            # A hit on any characteristic ingredient keyword is enough.
+            if any(k in step_words or k in step_l for k in keys):
+                matches.append(line)
+
+    # Keep stable order and remove duplicates.
+    seen=set()
+    unique=[]
+    for x in matches:
+        if x not in seen:
+            seen.add(x)
+            unique.append(x)
+    return unique
+
 def detect_seconds(text):
     t=text.lower()
     m=re.search(r'(\d+)\s*(minuten|min\b)',t)
@@ -1609,10 +1686,24 @@ def detect_seconds(text):
     return int(h.group(1))*3600 if h else 0
 
 def cook_mode():
-    rid=request.args.get("id",type=int); con=db()
-    r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone(); con.close()
-    if not r:return redirect("./")
-    steps=[{"text":s,"seconds":detect_seconds(s)} for s in r["steps"].splitlines() if s.strip()]
+    rid=request.args.get("id",type=int)
+    con=db()
+    r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    con.close()
+    if not r:
+        return redirect("./")
+
+    raw_steps=[s.strip() for s in (r["steps"] or "").splitlines() if s.strip()]
+    steps=[]
+    for idx,text in enumerate(raw_steps,1):
+        steps.append({
+            "number":idx,
+            "text":text,
+            "seconds":detect_seconds(text),
+            "ingredients":ingredients_for_step(text,r["ingredients"] or "")
+        })
+
     return render_template("cook.html",recipe=r,steps=steps)
+
 
 app.run(host="0.0.0.0",port=8099,debug=False)
