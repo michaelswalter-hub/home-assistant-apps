@@ -13,6 +13,7 @@
 </form>
 
 {% if tags and not cookbook %}
+<div id="recipe-tag-filters" class="recipe-tag-filters{% if not q and not selected_tags %} is-hidden{% endif %}">
 <form class="tag-filter" method="get">
   {% if q %}<input type="hidden" name="q" value="{{q}}">{% endif %}
   <div class="tag-filter-row">
@@ -25,6 +26,7 @@
   {% if selected_tags %}<a class="clear-tags" href="?{% if q %}q={{q|urlencode}}{% endif %}">Filter löschen</a>{% endif %}
   </div>
 </form>
+</div>
 {% endif %}
 
 {% if q %}<p class="hint">{{recipes|length}} Treffer für „{{q}}“</p>{% endif %}
@@ -62,7 +64,6 @@
 </div>
 {% endfor %}
 </div>
-{% endblock %}
 <script>
 (function(){
   const search=document.getElementById('recipe-search');
@@ -85,3 +86,5 @@
   if(search.value.trim() || tags.querySelector('.active,.selected,[aria-pressed="true"]')) showTags();
 })();
 </script>
+
+{% endblock %}
