@@ -270,3 +270,32 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
   background:#cfeeff!important;
   border-color:#9fdaf2!important;
 }
+
+/* 0.5.14 – Plus ausschließlich im Kopf der Rezeptübersicht */
+.header-recipe-plus{
+  flex:0 0 auto;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  text-decoration:none!important;
+  font-size:25px;
+  line-height:1;
+  font-weight:500;
+  color:#1779aa!important;
+  background:#dff3ff!important;
+  border:1px solid #b9e3f7!important;
+  box-shadow:none!important;
+}
+.header-recipe-plus:hover{background:#cdeeff!important}
+@media(max-width:700px){
+  .header-recipe-plus{
+    display:grid!important;
+    width:36px!important;
+    height:36px!important;
+    border-radius:10px!important;
+    font-size:24px!important;
+    margin-left:auto;
+  }
+}

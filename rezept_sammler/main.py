@@ -729,10 +729,11 @@ def recipe_detail():
         WHERE rt.recipe_id=? ORDER BY t.name COLLATE NOCASE""",(rid,)).fetchall()
     gallery=con.execute("""SELECT * FROM recipe_images
         WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
+    ingredient_sections=ingredient_groups(r["ingredients"] or "")
     con.close()
     return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,
         cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],
-        recipe_tags=recipe_tags,gallery=gallery)
+        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections)
 
 def edit_recipe():
     rid=request.args.get("id",type=int)
