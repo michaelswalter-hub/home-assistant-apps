@@ -47,7 +47,16 @@
   </div>
 </section>
 {% endif %}
-<div class="cols"><section class="card pad"><h2>🥕 Zutaten</h2><ul>{% for x in recipe.ingredients.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ul></section>
+<div class="cols"><section class="card pad"><h2>🥕 Zutaten</h2><div class="ingredient-groups">
+{% for group in ingredient_groups(recipe.ingredients) %}
+<section class="ingredient-group">
+  {% if group.title %}<h3>{{group.title}}</h3>{% endif %}
+  <ul>
+    {% for item in group.items %}<li>{{item}}</li>{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+</div><ul>{% for x in recipe.ingredients.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ul></section>
 <section class="card pad"><h2>👨‍🍳 Zubereitung</h2><ol>{% for x in recipe.steps.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ol></section></div>
 <section class="card pad"><h2>📝 Koch-Timeline</h2><form method="post" action="?view=note&id={{recipe.id}}">
 <select name="rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select>

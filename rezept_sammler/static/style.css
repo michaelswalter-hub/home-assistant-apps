@@ -248,3 +248,25 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
     font-size:22px;
   }
 }
+
+/* 0.5.13 – Zutaten-Gruppen */
+.ingredient-groups{display:flex;flex-direction:column;gap:16px}
+.ingredient-group{padding:0}
+.ingredient-group h3{margin:0 0 8px;font-size:15px;color:var(--accent);text-transform:none}
+.ingredient-group ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:7px}
+.ingredient-group li{padding:8px 10px;border-radius:11px;background:var(--bg);border:1px solid var(--border)}
+.ingredient-help{margin-top:-8px;margin-bottom:10px}
+.cook-ingredient-title{display:block;margin:12px 0 5px;color:var(--accent)}
+.cook-ingredient-item{padding:5px 0}
+
+/* 0.5.13 – kleiner hellblauer Plus-Button nur Rezeptübersicht */
+.recipe-plus-button{
+  background:#dff3ff!important;
+  color:#1976a8!important;
+  border:1px solid #bfe5f8!important;
+  box-shadow:none!important;
+}
+.recipe-plus-button:hover{
+  background:#cfeeff!important;
+  border-color:#9fdaf2!important;
+}

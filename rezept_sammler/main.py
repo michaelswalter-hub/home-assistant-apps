@@ -244,14 +244,14 @@ def ai_scan_recipe(file):
     prompt="""Lies dieses fotografierte oder gescannte Rezept. Gib ausschließlich valides JSON zurück:
 {
  "title": "Rezeptname",
- "ingredients": ["eine Zutat pro Eintrag"],
+ "ingredients": ["eine Zutat pro Eintrag; Abschnittsüberschriften als **Für ...** eigener Eintrag"],
  "steps": ["ein vollständiger Arbeitsschritt pro Eintrag"],
  "servings": "Portionsangabe oder leer",
  "prep_minutes": Zahl oder 0,
  "cook_minutes": Zahl oder 0,
  "total_minutes": Zahl oder 0
 }
-Übernimm Mengen und Einheiten möglichst exakt. Entferne Werbung, Seitenköpfe, Bildunterschriften und sonstigen Zeitungstext. Erfinde keine fehlenden Angaben."""
+Übernimm Mengen und Einheiten möglichst exakt. Wenn die Zutaten im Original gruppiert sind, erhalte diese Gruppen mit Überschriften wie **Für das Dressing** als eigene Zeile. Entferne Werbung, Seitenköpfe, Bildunterschriften und sonstigen Zeitungstext. Erfinde keine fehlenden Angaben."""
     payload={
         "model":settings.get("text_model") or "gpt-5",
         "input":[{
@@ -338,6 +338,46 @@ def iso_duration_minutes(value):
     secs=int(m.group(4) or 0)
     return days*1440+hours*60+mins+(1 if secs>=30 else 0)
 
+def ingredient_groups(text):
+    groups=[]
+    current={"title":"","items":[]}
+
+    def push():
+        nonlocal current
+        if current["title"] or current["items"]:
+            groups.append(current)
+        current={"title":"","items":[]}
+
+    for raw in (text or "").splitlines():
+        line=raw.strip()
+        if not line:
+            continue
+        if re.fullmatch(r"-{3,}",line):
+            continue
+
+        title=""
+        bold=re.fullmatch(r"\*\*(.+?)\*\*",line)
+        heading=re.fullmatch(r"#{1,3}\s+(.+)",line)
+        bracket=re.fullmatch(r"\[(.+?)\]",line)
+
+        if bold:
+            title=bold.group(1).strip()
+        elif heading:
+            title=heading.group(1).strip()
+        elif bracket:
+            title=bracket.group(1).strip()
+
+        if title:
+            push()
+            current={"title":title,"items":[]}
+        else:
+            current["items"].append(line)
+
+    push()
+    if not groups:
+        groups=[{"title":"","items":[]}]
+    return groups
+
 def human_minutes(value):
     try: value=int(value or 0)
     except: value=0
@@ -349,6 +389,7 @@ def human_minutes(value):
 
 
 app.jinja_env.globals["human_minutes"]=human_minutes
+app.jinja_env.globals["ingredient_groups"]=ingredient_groups
 
 def ha_api(path, payload=None, method="GET", timeout=30):
     token=os.environ.get("SUPERVISOR_TOKEN","")
