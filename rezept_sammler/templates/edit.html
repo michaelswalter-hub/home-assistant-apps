@@ -22,13 +22,6 @@
 {% for t in tags %}<label class="tag-choice" style="--tag-color:{{t.color or '#5b7cfa'}}"><input type="checkbox" name="tags" value="{{t.id}}" {% if t.id in selected_tags %}checked{% endif %}><span># {{t.name}}</span></label>
 {% else %}<p>Noch keine Tags. <a href="?view=tag_new">Jetzt erstellen</a>.</p>{% endfor %}
 </div>
-<label>Rezeptbild</label>
-<input type="file" name="image" accept="image/*">
-{% if recipe and recipe.image %}
-<img class="preview" src="images/{{recipe.image}}">
-<label class="check"><input type="checkbox" name="remove_image" value="1"> Bild entfernen</label>
-{% endif %}
-
 {% if recipe and recipe.source_url %}
 <label>Quelle</label>
 <input name="source_name" value="{{recipe.source_name}}" placeholder="Quelle">
@@ -36,6 +29,37 @@
 {% else %}
 <input type="hidden" name="source_name" value="">
 <input type="hidden" name="source_url" value="">
+{% endif %}
+
+
+{% if recipe %}
+<section class="edit-images">
+<div class="section-head">
+  <div><label>Eigene Bilder</label><p class="subtle image-help">Du kannst mehrere Bilder gleichzeitig auswählen.</p></div>
+</div>
+<input type="file" name="images" accept="image/*" multiple>
+
+{% if gallery %}
+<div class="edit-gallery">
+{% for img in gallery %}
+<div class="edit-image-card">
+  <img src="images/{{img.filename}}" alt="">
+  <div class="edit-image-actions">
+    {% if img.is_cover %}
+      <span class="cover-badge">★ Titelbild</span>
+    {% else %}
+      <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Titelbild</a>
+    {% endif %}
+    <a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑</a>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+</section>
+{% else %}
+<label>Rezeptbild</label>
+<input type="file" name="images" accept="image/*" multiple>
 {% endif %}
 
 <label>Zutaten</label>

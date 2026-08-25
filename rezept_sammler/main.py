@@ -187,6 +187,47 @@ def file_to_data_url(file):
         mime="image/jpeg"
     return f"data:{mime};base64,"+base64.b64encode(raw).decode("ascii")
 
+def file_to_pdf_data_url(file):
+    raw=file.read()
+    if len(raw)>20*1024*1024:
+        raise ValueError("Das PDF ist zu groß (max. 20 MB).")
+    if not raw.startswith(b"%PDF"):
+        raise ValueError("Die ausgewählte Datei ist kein gültiges PDF.")
+    return "data:application/pdf;base64,"+base64.b64encode(raw).decode("ascii")
+
+def ai_import_pdf(file):
+    settings=load_settings()
+    pdf_url=file_to_pdf_data_url(file)
+    prompt="""Lies dieses PDF und extrahiere das darin enthaltene Rezept.
+Gib ausschließlich valides JSON zurück:
+{
+ "title": "Rezeptname",
+ "ingredients": ["eine Zutat pro Eintrag"],
+ "steps": ["ein vollständiger Arbeitsschritt pro Eintrag"],
+ "servings": "Portionsangabe oder leer"
+}
+Falls das PDF ein Scan ist, lies den sichtbaren Text. Entferne Werbung, Kopf-/Fußzeilen,
+Seitenzahlen und sonstige nicht zum Rezept gehörende Inhalte.
+Übernimm Mengen und Einheiten möglichst exakt und erfinde keine fehlenden Angaben."""
+    payload={
+        "model":settings.get("text_model") or "gpt-5",
+        "input":[{
+            "role":"user",
+            "content":[
+                {"type":"input_file","filename":"rezept.pdf","file_data":pdf_url},
+                {"type":"input_text","text":prompt}
+            ]
+        }]
+    }
+    result=openai_json("/responses",payload,timeout=180)
+    obj=parse_json_text(response_text(result))
+    return {
+        "title":str(obj.get("title","")).strip(),
+        "ingredients":[str(x).strip() for x in obj.get("ingredients",[]) if str(x).strip()],
+        "steps":[str(x).strip() for x in obj.get("steps",[]) if str(x).strip()],
+        "servings":str(obj.get("servings","")).strip()
+    }
+
 def ai_scan_recipe(file):
     settings=load_settings()
     data_url=file_to_data_url(file)
@@ -302,7 +343,51 @@ def recipe_add_menu():
     return render_template("add_recipe.html")
 
 def pdf_import():
-    return render_template("pdf_import.html")
+    preview=None
+    error=""
+
+    if request.method=="POST":
+        action=request.form.get("action","scan")
+
+        if action=="scan":
+            file=request.files.get("pdf_file")
+            if not file or not file.filename:
+                error="Bitte eine PDF-Datei auswählen."
+            else:
+                try:
+                    preview=ai_import_pdf(file)
+                except Exception as exc:
+                    error=str(exc)
+
+        elif action=="save":
+            title=request.form.get("title","").strip()
+            if not title:
+                error="Bitte einen Rezeptnamen eingeben."
+            else:
+                con=db()
+                cur=con.execute("""INSERT INTO recipes
+                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name)
+                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (title,request.form.get("ingredients","").strip(),form_steps(),"",
+                     datetime.now().isoformat(),"","","","PDF-Import"))
+                rid=cur.lastrowid
+
+                for cid in request.form.getlist("cookbooks"):
+                    con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
+                for tid in request.form.getlist("tags"):
+                    con.execute("INSERT OR IGNORE INTO recipe_tags VALUES(?,?)",(rid,int(tid)))
+
+                con.commit()
+                con.close()
+                return redirect(f"?view=recipe&id={rid}")
+
+    con=db()
+    cookbooks=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
+    tags=con.execute("SELECT * FROM tags ORDER BY name COLLATE NOCASE").fetchall()
+    con.close()
+    return render_template("pdf_import.html",preview=preview,error=error,
+                           cookbooks=cookbooks,tags=tags)
+
 
 def recipe_list():
     q=request.args.get("q","").strip()
@@ -385,35 +470,57 @@ def recipe_detail():
         recipe_tags=recipe_tags,gallery=gallery)
 
 def edit_recipe():
-    rid=request.args.get("id",type=int); con=db()
+    rid=request.args.get("id",type=int)
+    con=db()
     r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
-    if not r: con.close(); return redirect("./")
+    if not r:
+        con.close()
+        return redirect("./")
+
     if request.method=="POST":
-        image=r["image"]
-        if request.form.get("remove_image")=="1":
-            delete_image(image); image=""
-        uploaded=request.files.get("image")
-        if uploaded and uploaded.filename:
-            delete_image(image); image=save_image(uploaded) or ""
-        con.execute("""UPDATE recipes SET title=?,ingredients=?,steps=?,book=?,image=?,
-            image_source=? WHERE id=?""",
-            (request.form.get("title","").strip(),request.form.get("ingredients","").strip(),
-             form_steps(),"",
-             image,"upload" if image else "",rid))
+        con.execute("""UPDATE recipes SET title=?,ingredients=?,steps=?,book='',
+            source_url=?,source_name=? WHERE id=?""",
+            (request.form.get("title","").strip(),
+             request.form.get("ingredients","").strip(),
+             form_steps(),
+             request.form.get("source_url","").strip(),
+             request.form.get("source_name","").strip(),
+             rid))
+
         con.execute("DELETE FROM recipe_cookbooks WHERE recipe_id=?",(rid,))
-        con.execute("DELETE FROM recipe_tags WHERE recipe_id=?",(rid,))
         for cid in request.form.getlist("cookbooks"):
             con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
+
         con.execute("DELETE FROM recipe_tags WHERE recipe_id=?",(rid,))
         for tid in request.form.getlist("tags"):
             con.execute("INSERT OR IGNORE INTO recipe_tags VALUES(?,?)",(rid,int(tid)))
-        con.commit(); con.close(); return redirect(f"?view=recipe&id={rid}")
+
+        # Eigene Bilder ergänzen; vorhandene Galerie bleibt erhalten.
+        uploads=request.files.getlist("images")
+        for uploaded in uploads:
+            if uploaded and uploaded.filename:
+                filename=save_image(uploaded)
+                if filename:
+                    add_recipe_gallery_image(con,rid,filename,"upload")
+
+        con.commit()
+        con.close()
+        return redirect(f"?view=recipe&id={rid}")
+
     cookbooks=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
-    selected_cookbooks={x["cookbook_id"] for x in con.execute("SELECT cookbook_id FROM recipe_cookbooks WHERE recipe_id=?",(rid,)).fetchall()}
+    selected_cookbooks={x["cookbook_id"] for x in con.execute(
+        "SELECT cookbook_id FROM recipe_cookbooks WHERE recipe_id=?",(rid,)).fetchall()}
     tags=con.execute("SELECT * FROM tags ORDER BY name COLLATE NOCASE").fetchall()
-    selected_tags={x["tag_id"] for x in con.execute("SELECT tag_id FROM recipe_tags WHERE recipe_id=?",(rid,)).fetchall()}
+    selected_tags={x["tag_id"] for x in con.execute(
+        "SELECT tag_id FROM recipe_tags WHERE recipe_id=?",(rid,)).fetchall()}
+    gallery=con.execute("""SELECT * FROM recipe_images
+        WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
     con.close()
-    return render_template("edit.html",recipe=r,cookbooks=cookbooks,selected_cookbooks=selected_cookbooks,tags=tags,selected_tags=selected_tags,steps=split_steps(r["steps"]))
+
+    return render_template("edit.html",recipe=r,cookbooks=cookbooks,
+        selected_cookbooks=selected_cookbooks,tags=tags,selected_tags=selected_tags,
+        steps=split_steps(r["steps"]),gallery=gallery)
+
 
 def delete_recipe():
     rid=request.args.get("id",type=int); con=db()
@@ -997,6 +1104,8 @@ def import_recipe():
                      request.form.get("source_url","").strip(),request.form.get("source_name","").strip())
                 )
                 rid = cur.lastrowid
+                if image:
+                    add_recipe_gallery_image(con,rid,image,"web")
                 for cid in request.form.getlist("cookbooks"):
                     con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
                 for tid in request.form.getlist("tags"):

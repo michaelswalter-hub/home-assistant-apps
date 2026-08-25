@@ -1,10 +1,94 @@
 {% extends "base.html" %}{% block content %}
-<div class="page-head"><div><p class="eyebrow">IMPORT</p><h1>📄 PDF importieren</h1>
-<p class="subtle">Der PDF-Import ist im neuen Rezept-Menü bereits vorgesehen.</p></div></div>
-<section class="panel form-card">
+<div class="page-head">
+<div>
+<p class="eyebrow">KI-IMPORT</p>
+<h1>📄 Rezept aus PDF</h1>
+<p class="subtle">Text-PDF oder gescanntes Rezept – die Cloud-KI strukturiert Zutaten und Arbeitsschritte.</p>
+</div>
+</div>
+
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+
+{% if not preview %}
+<section class="panel scan-drop">
 <div class="scan-icon">📄</div>
-<h2>PDF-Unterstützung folgt</h2>
-<p class="subtle">Geplant: PDF auswählen → Text bzw. Scan erkennen → KI strukturiert Zutaten und Schritte → Vorschau → speichern.</p>
-<a class="primary" href="?view=new">← Zur Auswahl</a>
+<h2>PDF auswählen</h2>
+<p class="subtle">Maximal 20 MB. Der Inhalt wird zur Erkennung an die konfigurierte Cloud-KI übertragen.</p>
+<form method="post" enctype="multipart/form-data" class="pdf-scan-form">
+<input type="hidden" name="action" value="scan">
+<input type="file" name="pdf_file" accept="application/pdf,.pdf" required>
+<button class="primary">✨ PDF mit KI erkennen</button>
+</form>
+<div class="ai-progress pdf-progress" hidden>
+<div class="spinner"></div><b>KI liest dein PDF …</b><span>Das kann je nach PDF einen Moment dauern.</span>
+</div>
 </section>
+<script>
+document.querySelector('.pdf-scan-form')?.addEventListener('submit',e=>{
+ document.querySelector('.pdf-progress').hidden=false;
+ const b=e.currentTarget.querySelector('button');b.disabled=true;b.textContent='PDF wird gelesen …';
+});
+</script>
+{% else %}
+<section class="panel">
+<h2>Vorschau prüfen</h2>
+<p class="subtle">Kontrolliere die erkannten Angaben vor dem Speichern.</p>
+
+<form method="post">
+<input type="hidden" name="action" value="save">
+
+<label>Titel</label>
+<input name="title" value="{{preview.title}}" required>
+
+{% if preview.servings %}<div class="notice">👥 {{preview.servings}}</div>{% endif %}
+
+<label>Kochbücher</label>
+<div class="choice-pills">
+{% for b in cookbooks %}
+<label><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>📚 {{b.name}}</span></label>
+{% endfor %}
+</div>
+
+<label>Tags</label>
+<div class="choice-pills">
+{% for t in tags %}
+<label><input type="checkbox" name="tags" value="{{t.id}}"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span></label>
+{% endfor %}
+</div>
+
+<div class="import-columns">
+<div>
+<label>Zutaten</label>
+<textarea name="ingredients" class="ingredients-area">{{preview.ingredients|join('\n')}}</textarea>
+</div>
+
+<div>
+<div class="section-head">
+<label>Zubereitung</label>
+<button type="button" onclick="addStep()">＋ Schritt</button>
+</div>
+<div id="steps-list">
+{% for step in preview.steps %}
+<div class="edit-step">
+<div class="step-number">{{loop.index}}</div>
+<textarea name="steps[]" rows="3">{{step}}</textarea>
+<button type="button" class="icon-danger" onclick="this.closest('.edit-step').remove();renumberSteps()">🗑</button>
+</div>
+{% endfor %}
+</div>
+</div>
+</div>
+
+<div class="form-actions">
+<a href="?view=new">Abbrechen</a>
+<button class="primary">💾 Als Rezept speichern</button>
+</div>
+</form>
+</section>
+
+<script>
+function renumberSteps(){document.querySelectorAll('#steps-list .edit-step').forEach((e,i)=>e.querySelector('.step-number').textContent=i+1)}
+function addStep(){const l=document.getElementById('steps-list'),r=document.createElement('div');r.className='edit-step';r.innerHTML='<div class="step-number"></div><textarea name="steps[]" rows="3"></textarea><button type="button" class="icon-danger" onclick="this.closest(\\'.edit-step\\').remove();renumberSteps()">🗑</button>';l.appendChild(r);renumberSteps();r.querySelector('textarea').focus()}
+</script>
+{% endif %}
 {% endblock %}
