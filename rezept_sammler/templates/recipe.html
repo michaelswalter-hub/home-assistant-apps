@@ -1,9 +1,24 @@
 {% extends "base.html" %}{% block content %}
-<article class="card detail">{% if recipe.image %}<img class="detail-img" src="images/{{recipe.image}}">{% endif %}
+<article class="card detail">
 <div class="pad"><h1>{{recipe.title}}</h1><p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
 {% if recipe.source_url %}<p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>{% endif %}
 <div class="actions"><a class="primary" href="?view=cook&id={{recipe.id}}">👨‍🍳 Kochmodus</a>
 <a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a><a href="?view=ai_image&id={{recipe.id}}">✨ KI-Bild</a><a class="danger" href="?view=delete&id={{recipe.id}}">🗑 Löschen</a></div></div></article>
+{% if gallery %}
+<section class="recipe-gallery">
+<div class="gallery-track">
+{% for img in gallery %}
+<figure class="gallery-slide" id="bild-{{img.id}}">
+<img src="images/{{img.filename}}" alt="{{recipe.title}}">
+<figcaption>
+{% if img.is_cover %}<span class="cover-badge">★ Titelbild</span>{% else %}<a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>{% endif %}
+<a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Bild löschen</a>
+</figcaption></figure>
+{% endfor %}
+</div>
+{% if gallery|length > 1 %}<div class="gallery-dots">{% for img in gallery %}<a href="#bild-{{img.id}}" aria-label="Bild {{loop.index}}"></a>{% endfor %}</div>{% endif %}
+</section>
+{% endif %}
 <div class="cols"><section class="card pad"><h2>🥕 Zutaten</h2><ul>{% for x in recipe.ingredients.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ul></section>
 <section class="card pad"><h2>👨‍🍳 Zubereitung</h2><ol>{% for x in recipe.steps.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ol></section></div>
 <section class="card pad"><h2>📝 Koch-Timeline</h2><form method="post" action="?view=note&id={{recipe.id}}">

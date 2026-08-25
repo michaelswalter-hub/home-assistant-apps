@@ -57,6 +57,20 @@ def init_db():
         recipe_id INTEGER NOT NULL,
         tag_id INTEGER NOT NULL,
         UNIQUE(recipe_id, tag_id))""")
+    con.execute("""CREATE TABLE IF NOT EXISTS recipe_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recipe_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT '',
+        is_cover INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT '',
+        UNIQUE(recipe_id, filename))""")
+    # Existing single recipe image becomes the first gallery/cover image.
+    for rr in con.execute("SELECT id,image,image_source FROM recipes WHERE image IS NOT NULL AND image!=''").fetchall():
+        exists=con.execute("SELECT 1 FROM recipe_images WHERE recipe_id=? AND filename=?",(rr["id"],rr["image"])).fetchone()
+        if not exists:
+            con.execute("INSERT OR IGNORE INTO recipe_images(recipe_id,filename,source,is_cover,created_at) VALUES(?,?,?,?,?)",
+                        (rr["id"],rr["image"],rr["image_source"] or "",1,datetime.now().isoformat()))
     tag_cols={x["name"] for x in con.execute("PRAGMA table_info(tags)").fetchall()}
     if "color" not in tag_cols:
         con.execute("ALTER TABLE tags ADD COLUMN color TEXT NOT NULL DEFAULT '#5b7cfa'")
@@ -95,6 +109,7 @@ def load_settings():
         "api_key":"",
         "text_model":"gpt-5",
         "image_model":"gpt-image-1",
+        "image_quality":"medium",
         "auto_ai_image":False
     }
     try:
@@ -208,7 +223,7 @@ def ai_generate_image(prompt, prefix="ai"):
         "model":settings.get("image_model") or "gpt-image-1",
         "prompt":prompt,
         "size":"1024x1024",
-        "quality":"medium",
+        "quality":settings.get("image_quality") or "medium",
         "output_format":"jpeg"
     }
     result=openai_json("/images/generations",payload,timeout=180)
@@ -219,6 +234,14 @@ def ai_generate_image(prompt, prefix="ai"):
     name=f"{prefix}_{uuid.uuid4().hex}.jpg"
     (IMG_DIR/name).write_bytes(raw)
     return name
+
+def add_recipe_gallery_image(con,rid,filename,source=""):
+    has_cover=con.execute("SELECT 1 FROM recipe_images WHERE recipe_id=? AND is_cover=1",(rid,)).fetchone()
+    con.execute("INSERT OR IGNORE INTO recipe_images(recipe_id,filename,source,is_cover,created_at) VALUES(?,?,?,?,?)",
+                (rid,filename,source,0 if has_cover else 1,datetime.now().isoformat()))
+    if not has_cover:
+        con.execute("UPDATE recipes SET image=?,image_source=? WHERE id=?",(filename,source,rid))
+    con.commit()
 
 def recipe_image_prompt(recipe):
     ingredients=", ".join([x.strip() for x in (recipe["ingredients"] or "").splitlines() if x.strip()][:12])
@@ -271,7 +294,7 @@ def index():
     routes = {
         "new": new_recipe, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "week": week_plan, "import": import_recipe,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
     }
     return routes[view]() if view in routes else recipe_list()
 
@@ -486,6 +509,7 @@ def settings_page():
                 "api_key":key if key else saved_key,
                 "text_model":request.form.get("text_model","gpt-5").strip() or "gpt-5",
                 "image_model":request.form.get("image_model","gpt-image-1").strip() or "gpt-image-1",
+                "image_quality":request.form.get("image_quality","medium") if request.form.get("image_quality","medium") in ("low","medium","high") else "medium",
                 "auto_ai_image":request.form.get("auto_ai_image")=="1"
             }
             if request.form.get("clear_key")=="1":
@@ -568,25 +592,58 @@ def recipe_ai_image():
     if request.method=="POST":
         action=request.form.get("action","generate")
         if action=="generate":
-            if request.form.get("confirm_cost")!="1":
-                error="Bitte bestätige zuerst, dass für die KI-Bildgenerierung API-Kosten entstehen können."
-            else:
-                try:
-                    generated=ai_generate_image(recipe_image_prompt(recipe),"recipe")
-                except Exception as exc:
-                    error=str(exc)
+            try:
+                generated=ai_generate_image(recipe_image_prompt(recipe),"recipe")
+                add_recipe_gallery_image(con,rid,generated,"ai")
+            except Exception as exc:
+                error=str(exc)
         elif action=="use":
             filename=Path(request.form.get("filename","")).name
-            if filename and (IMG_DIR/filename).exists():
-                old=recipe["image"]
+            row=con.execute("SELECT id FROM recipe_images WHERE recipe_id=? AND filename=?",(rid,filename)).fetchone()
+            if row and (IMG_DIR/filename).exists():
+                con.execute("UPDATE recipe_images SET is_cover=0 WHERE recipe_id=?",(rid,))
+                con.execute("UPDATE recipe_images SET is_cover=1 WHERE id=?",(row["id"],))
                 con.execute("UPDATE recipes SET image=?,image_source='ai' WHERE id=?",(filename,rid))
                 con.commit()
-                if old and old != filename:
-                    delete_image(old)
                 con.close()
                 return redirect(f"?view=recipe&id={rid}")
     con.close()
     return render_template("ai_image.html",recipe=recipe,generated=generated,error=error)
+
+def recipe_image_cover():
+    rid=request.args.get("id",type=int); iid=request.args.get("image_id",type=int)
+    con=db()
+    img=con.execute("SELECT * FROM recipe_images WHERE id=? AND recipe_id=?",(iid,rid)).fetchone()
+    if img:
+        con.execute("UPDATE recipe_images SET is_cover=0 WHERE recipe_id=?",(rid,))
+        con.execute("UPDATE recipe_images SET is_cover=1 WHERE id=?",(iid,))
+        con.execute("UPDATE recipes SET image=?,image_source=? WHERE id=?",(img["filename"],img["source"],rid))
+        con.commit()
+    con.close()
+    return redirect(f"?view=recipe&id={rid}")
+
+def recipe_image_delete():
+    rid=request.args.get("id",type=int); iid=request.args.get("image_id",type=int)
+    con=db()
+    img=con.execute("SELECT * FROM recipe_images WHERE id=? AND recipe_id=?",(iid,rid)).fetchone()
+    if img:
+        was_cover=bool(img["is_cover"])
+        filename=img["filename"]
+        con.execute("DELETE FROM recipe_images WHERE id=?",(iid,))
+        replacement=None
+        if was_cover:
+            replacement=con.execute("SELECT * FROM recipe_images WHERE recipe_id=? ORDER BY id DESC LIMIT 1",(rid,)).fetchone()
+            if replacement:
+                con.execute("UPDATE recipe_images SET is_cover=1 WHERE id=?",(replacement["id"],))
+                con.execute("UPDATE recipes SET image=?,image_source=? WHERE id=?",(replacement["filename"],replacement["source"],rid))
+            else:
+                con.execute("UPDATE recipes SET image='',image_source='' WHERE id=?",(rid,))
+        con.commit()
+        # only remove file if no other gallery row references it
+        still=con.execute("SELECT 1 FROM recipe_images WHERE filename=?",(filename,)).fetchone()
+        if not still: delete_image(filename)
+    con.close()
+    return redirect(f"?view=recipe&id={rid}")
 
 def book_cover():
     cid=request.args.get("id",type=int)

@@ -1,17 +1,23 @@
 {% extends "base.html" %}{% block content %}
-<div class="page-head"><div><p class="eyebrow">KI-BILD</p><h1>✨ Bild für {{recipe.title}}</h1><p class="subtle">Die KI erzeugt ein neues Food-Foto aus deinem Rezept.</p></div></div>
+<div class="page-head"><div><p class="eyebrow">KI-BILD</p><h1>✨ Bild für {{recipe.title}}</h1><p class="subtle">Neue Bilder werden zur Galerie hinzugefügt. Vorhandene Bilder bleiben erhalten.</p></div></div>
 {% if error %}<div class="notice error">{{error}}</div>{% endif %}
 <section class="panel ai-preview">
 {% if generated %}
 <img class="generated-image" src="images/{{generated}}">
-<div class="form-actions"><form method="post"><input type="hidden" name="action" value="use"><input type="hidden" name="filename" value="{{generated}}"><button class="primary">✓ Bild übernehmen</button></form>
-<form method="post" class="cost-confirm-form"><input type="hidden" name="action" value="generate">
-<label class="cost-confirm"><input type="checkbox" name="confirm_cost" value="1" required><span>Kosten bestätigen</span></label>
-<button>↻ Neu erzeugen</button></form></div>
+<p>Das neue Bild wurde zur Galerie hinzugefügt.</p>
+<div class="form-actions"><form method="post"><input type="hidden" name="action" value="use"><input type="hidden" name="filename" value="{{generated}}"><button class="primary">★ Als Titelbild</button></form>
+<form method="post" class="ai-generate-form"><input type="hidden" name="action" value="generate"><button>✨ Noch ein Bild erzeugen</button></form></div>
 {% else %}
-<div class="scan-icon">✨</div><h2>Noch kein neues Bild erzeugt</h2><form method="post" class="cost-confirm-form"><input type="hidden" name="action" value="generate">
-<label class="cost-confirm"><input type="checkbox" name="confirm_cost" value="1" required><span>Ich bestätige, dass die Bildgenerierung API-Kosten verursachen kann.</span></label>
-<button class="primary">✨ KI-Bild erzeugen</button></form>
+<div class="scan-icon">✨</div><h2>Neues Rezeptbild erzeugen</h2>
+<form method="post" class="ai-generate-form"><input type="hidden" name="action" value="generate"><button class="primary">✨ KI-Bild erzeugen</button></form>
 {% endif %}
+<div class="ai-progress" hidden><div class="spinner"></div><b>KI erstellt dein Rezeptbild …</b><span>Das kann einen Moment dauern.</span></div>
 <a href="?view=recipe&id={{recipe.id}}">← Zurück zum Rezept</a>
-</section>{% endblock %}
+</section>
+<script>
+document.querySelectorAll('.ai-generate-form').forEach(f=>f.addEventListener('submit',()=>{
+ document.querySelector('.ai-progress').hidden=false;
+ f.querySelector('button').disabled=true;
+ f.querySelector('button').textContent='Bild wird erstellt …';
+}));
+</script>{% endblock %}
