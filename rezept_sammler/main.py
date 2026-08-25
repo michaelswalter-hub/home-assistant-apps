@@ -209,7 +209,41 @@ def file_to_pdf_data_url(file):
 
 def ai_import_pdf(file):
     settings=load_settings()
-    pdf_url=file_to_pdf_data_url(file)
+    api_key=(settings.get("api_key") or "").strip()
+    if not api_key:
+        raise ValueError("Bitte zuerst den OpenAI API-Key unter Einstellungen hinterlegen.")
+
+    raw=file.read()
+    if not raw:
+        raise ValueError("Die ausgewählte PDF-Datei ist leer.")
+    if len(raw) > 20*1024*1024:
+        raise ValueError("Das PDF ist zu groß. Bitte eine Datei unter 20 MB verwenden.")
+
+    filename=file.filename or "rezept.pdf"
+    boundary="----RecipePDF"+uuid.uuid4().hex
+    body=(
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\nuser_data\r\n"
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n"
+        f"Content-Type: application/pdf\r\n\r\n"
+    ).encode("utf-8") + raw + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    req=Request("https://api.openai.com/v1/files",data=body,method="POST",headers={
+        "Authorization":"Bearer "+api_key,
+        "Content-Type":"multipart/form-data; boundary="+boundary
+    })
+    try:
+        with urlopen(req,timeout=60) as response:
+            uploaded=json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail=exc.read().decode("utf-8",errors="replace")
+        raise ValueError(f"PDF-Upload zur KI fehlgeschlagen ({exc.code}): {detail[:300]}")
+    except Exception as exc:
+        raise ValueError(f"PDF-Upload zur KI fehlgeschlagen: {exc}")
+
+    file_id=uploaded.get("id")
+    if not file_id:
+        raise ValueError("Für das PDF wurde keine Datei-ID zurückgegeben.")
+
     prompt="""Lies dieses PDF und extrahiere das darin enthaltene Rezept.
 Gib ausschließlich valides JSON zurück:
 {
@@ -224,27 +258,40 @@ Gib ausschließlich valides JSON zurück:
 Falls das PDF ein Scan ist, lies den sichtbaren Text. Entferne Werbung, Kopf-/Fußzeilen,
 Seitenzahlen und sonstige nicht zum Rezept gehörende Inhalte.
 Übernimm Mengen und Einheiten möglichst exakt und erfinde keine fehlenden Angaben."""
+
     payload={
         "model":settings.get("text_model") or "gpt-5",
         "input":[{
             "role":"user",
             "content":[
-                {"type":"input_file","filename":"rezept.pdf","file_data":pdf_url},
+                {"type":"input_file","file_id":file_id},
                 {"type":"input_text","text":prompt}
             ]
         }]
     }
-    result=openai_json("/responses",payload,timeout=180)
-    obj=parse_json_text(response_text(result))
+    try:
+        result=openai_json("/responses",payload,timeout=120)
+        obj=parse_json_text(response_text(result))
+    except Exception as exc:
+        raise ValueError(f"KI konnte das PDF nicht auslesen: {exc}")
+
+    ingredients=obj.get("ingredients",[])
+    steps=obj.get("steps",[])
+    if isinstance(ingredients,str):
+        ingredients=[x.strip() for x in ingredients.splitlines() if x.strip()]
+    if isinstance(steps,str):
+        steps=split_steps(steps)
+
     return {
         "title":str(obj.get("title","")).strip(),
-        "ingredients":[str(x).strip() for x in obj.get("ingredients",[]) if str(x).strip()],
-        "steps":[str(x).strip() for x in obj.get("steps",[]) if str(x).strip()],
+        "ingredients":[str(x).strip() for x in ingredients if str(x).strip()],
+        "steps":[str(x).strip() for x in steps if str(x).strip()],
         "servings":str(obj.get("servings","")).strip(),
         "prep_minutes":int(obj.get("prep_minutes",0) or 0),
         "cook_minutes":int(obj.get("cook_minutes",0) or 0),
         "total_minutes":int(obj.get("total_minutes",0) or 0)
     }
+
 
 def ai_scan_recipe(file):
     settings=load_settings()
@@ -378,32 +425,67 @@ def ha_api(path, payload=None, method="GET", timeout=30):
 def ha_todo_entities():
     try:
         states=ha_api("/states")
-        return sorted([
-            {"entity_id":x.get("entity_id",""),"name":x.get("attributes",{}).get("friendly_name") or x.get("entity_id","")}
-            for x in states if str(x.get("entity_id","")).startswith("todo.")
-        ], key=lambda x:x["name"].lower())
+        result=[]
+        for x in states:
+            entity_id=str(x.get("entity_id",""))
+            if not entity_id.startswith("todo."):
+                continue
+            attrs=x.get("attributes",{}) or {}
+            supported=attrs.get("supported_features")
+            try:
+                supported=int(supported) if supported is not None else None
+            except Exception:
+                supported=None
+            if supported is not None and not (supported & 1):
+                continue
+            name=str(attrs.get("friendly_name") or entity_id)
+            marker=" ".join([
+                entity_id,name,str(attrs.get("integration","")),str(attrs.get("platform",""))
+            ]).lower()
+            if "bring" not in marker:
+                continue
+            result.append({"entity_id":entity_id,"name":name})
+        return sorted(result,key=lambda x:x["name"].lower())
     except Exception:
         return []
+
 
 def bring_add_items(entity_id, ingredients):
     entity_id=(entity_id or "").strip()
     if not entity_id.startswith("todo."):
-        raise ValueError("Bitte unter Einstellungen eine gültige Bring!-To-do-Liste auswählen.")
+        raise ValueError("Bitte eine gültige Einkaufsliste auswählen.")
+
     items=[x.strip() for x in ingredients if x.strip()]
     if not items:
-        raise ValueError("Dieses Rezept enthält keine Zutaten.")
+        raise ValueError("Dieses Rezept enthält keine ausgewählten Zutaten.")
+
     failures=[]
+    added=0
+
     for item in items:
         try:
+            # REST /api/services/<domain>/<service> expects service_data directly.
             ha_api("/services/todo/add_item",{
-                "target":{"entity_id":entity_id},
-                "data":{"item":item}
+                "entity_id":entity_id,
+                "item":item
             },"POST",20)
+            added+=1
         except Exception as exc:
-            failures.append(str(exc))
+            failures.append(f"{item}: {exc}")
+
     if failures:
-        raise ValueError(f"{len(failures)} Einträge konnten nicht übertragen werden.")
-    return len(items)
+        first=failures[0]
+        if added:
+            raise ValueError(
+                f"{added} Zutaten wurden übertragen, {len(failures)} nicht. "
+                f"Erster Fehler: {first}"
+            )
+        raise ValueError(
+            f"Keine Zutat konnte übertragen werden. Home Assistant meldet: {first}"
+        )
+
+    return added
+
 
 def ai_calculate_nutrition(recipe):
     settings=load_settings()

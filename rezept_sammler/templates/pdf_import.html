@@ -20,7 +20,7 @@
 <button class="primary">✨ PDF mit KI erkennen</button>
 </form>
 <div class="ai-progress pdf-progress" hidden>
-<div class="spinner"></div><b>KI liest dein PDF …</b><span>Das kann je nach PDF einen Moment dauern.</span>
+<div class="spinner"></div><div><b>PDF wird hochgeladen und analysiert …</b><small>Das kann je nach PDF bis zu 1–2 Minuten dauern.</small></div><b>KI liest dein PDF …</b><span>Das kann je nach PDF einen Moment dauern.</span>
 </div>
 </section>
 <script>
@@ -39,6 +39,13 @@ document.querySelector('.pdf-scan-form')?.addEventListener('submit',e=>{
 
 <label>Titel</label>
 <input name="title" value="{{preview.title}}" required>
+<div class="meta-grid import-meta">
+<div><label>Portionen</label><input name="servings" value="{{preview.servings}}"></div>
+<div><label>Vorbereitung (Min.)</label><input type="number" min="0" name="prep_minutes" value="{{preview.prep_minutes or 0}}"></div>
+<div><label>Kochzeit (Min.)</label><input type="number" min="0" name="cook_minutes" value="{{preview.cook_minutes or 0}}"></div>
+<div><label>Gesamtzeit (Min.)</label><input type="number" min="0" name="total_minutes" value="{{preview.total_minutes or 0}}"></div>
+</div>
+
 
 {% if preview.servings %}<div class="notice">👥 {{preview.servings}}</div>{% endif %}
 
