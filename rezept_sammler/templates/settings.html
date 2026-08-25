@@ -12,14 +12,23 @@
 <input type="password" name="api_key" placeholder="{{masked_key}}" autocomplete="new-password">
 <small class="field-help">Leer lassen, um den vorhandenen Schlüssel beizubehalten.</small>
 <label>Text-/Vision-Modell</label><input name="text_model" value="{{settings.text_model}}">
-<label>Bildmodell</label><input name="image_model" value="{{settings.image_model}}">
+<label>Bildmodell</label>
+<select name="image_model">
+<option value="gpt-image-1-mini" {% if settings.image_model=='gpt-image-1-mini' %}selected{% endif %}>gpt-image-1-mini – günstig</option>
+<option value="gpt-image-1" {% if settings.image_model=='gpt-image-1' %}selected{% endif %}>gpt-image-1 – höhere Qualität</option>
+</select>
 <label>Bildqualität / Kosten</label>
 <select name="image_quality">
-<option value="low" {% if settings.image_quality=='low' %}selected{% endif %}>Sparsam – niedrigste Bildkosten</option>
-<option value="medium" {% if settings.image_quality=='medium' %}selected{% endif %}>Standard – guter Kompromiss</option>
-<option value="high" {% if settings.image_quality=='high' %}selected{% endif %}>Hoch – beste Qualität, höhere Kosten</option>
+<option value="low" {% if settings.image_quality=='low' %}selected{% endif %}>Sparsam / Low</option>
+<option value="medium" {% if settings.image_quality=='medium' %}selected{% endif %}>Standard / Medium</option>
+<option value="high" {% if settings.image_quality=='high' %}selected{% endif %}>Hoch / High</option>
 </select>
-<small class="field-help">Die tatsächlichen API-Preise können sich ändern. Dein OpenAI-Projektlimit bleibt der wichtigste Kostenschutz.</small>
+<div class="ai-cost-table">
+<b>Ungefähre Kosten pro 1024×1024-Bild</b>
+<div><span>gpt-image-1-mini</span><span>Low ≈ $0,005 · Medium ≈ $0,011 · High ≈ $0,036</span></div>
+<div><span>gpt-image-1</span><span>Low ≈ $0,011 · Medium ≈ $0,042 · High ≈ $0,167</span></div>
+<small>Die Tokenanzeige im OpenAI-Dashboard ist nicht direkt mit „Kosten pro Bild“ gleichzusetzen. Preise können sich ändern.</small>
+</div>
 <label class="switch-row"><input type="checkbox" name="auto_ai_image" value="1" {% if settings.auto_ai_image %}checked{% endif %}><span>Nach einem KI-Scan automatisch ein Rezeptbild erzeugen <b>(nicht empfohlen für Kostenkontrolle)</b></span></label>
 <label class="switch-row danger-zone"><input type="checkbox" name="clear_key" value="1"><span>Gespeicherten API-Schlüssel löschen</span></label>
 <button class="primary">Speichern</button>

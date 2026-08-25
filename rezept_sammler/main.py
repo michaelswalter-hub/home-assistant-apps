@@ -361,12 +361,22 @@ def new_recipe():
 def recipe_detail():
     rid=request.args.get("id",type=int); con=db()
     r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not r:
+        con.close()
+        return redirect("./")
     notes=con.execute("SELECT * FROM notes WHERE recipe_id=? ORDER BY cooked_at DESC,id DESC",(rid,)).fetchall()
-    cookbook_names=[x["name"] for x in con.execute("""SELECT c.name FROM cookbooks c JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id WHERE rc.recipe_id=? ORDER BY c.name COLLATE NOCASE""",(rid,)).fetchall()]
-    recipe_tags=con.execute("""SELECT t.name,t.color FROM tags t JOIN recipe_tags rt ON rt.tag_id=t.id WHERE rt.recipe_id=? ORDER BY t.name COLLATE NOCASE""",(rid,)).fetchall()
+    cookbook_names=[x["name"] for x in con.execute("""SELECT c.name FROM cookbooks c
+        JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id
+        WHERE rc.recipe_id=? ORDER BY c.name COLLATE NOCASE""",(rid,)).fetchall()]
+    recipe_tags=con.execute("""SELECT t.name,t.color FROM tags t
+        JOIN recipe_tags rt ON rt.tag_id=t.id
+        WHERE rt.recipe_id=? ORDER BY t.name COLLATE NOCASE""",(rid,)).fetchall()
+    gallery=con.execute("""SELECT * FROM recipe_images
+        WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
     con.close()
-    if not r: return redirect("./")
-    return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],recipe_tags=recipe_tags)
+    return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,
+        cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],
+        recipe_tags=recipe_tags,gallery=gallery)
 
 def edit_recipe():
     rid=request.args.get("id",type=int); con=db()
