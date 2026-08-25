@@ -75,15 +75,15 @@ def safe_date(iso):
 
 def monday_for(d): return d - timedelta(days=d.weekday())
 
-TAG_COLORS=TAG_COLORS_EXT
 def safe_tag_color(v):
     v=(v or "").strip().lower()
     return v if v in TAG_COLORS else TAG_COLORS[0]
 
+TAG_COLORS_EXT=["#5b7cfa","#e85d75","#e49b0f","#35a36f","#8b5cf6","#0f9fb5","#d66a1f","#64748b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#6366f1","#a855f7","#ef4444","#22c55e","#f59e0b","#0ea5e9","#78716c"]
+TAG_COLORS=TAG_COLORS_EXT
+BOOK_COLORS=["#6f5bd3","#d35d7f","#2f8f83","#d18936","#4d78c8","#a05aa8","#6a7f43","#a65d4d","#566272","#a17b45"]
 SETTINGS_FILE=Path("/data/settings.json")
 OPENAI_API_BASE="https://api.openai.com/v1"
-BOOK_COLORS=["#6f5bd3","#d35d7f","#2f8f83","#d18936","#4d78c8","#a05aa8","#6a7f43","#a65d4d","#566272","#a17b45"]
-TAG_COLORS_EXT=["#5b7cfa","#e85d75","#e49b0f","#35a36f","#8b5cf6","#0f9fb5","#d66a1f","#64748b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#6366f1","#a855f7","#ef4444","#22c55e","#f59e0b","#0ea5e9","#78716c"]
 
 def load_settings():
     defaults={
