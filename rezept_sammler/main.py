@@ -978,18 +978,29 @@ def recipe_bring():
         return redirect("./")
 
     settings=load_settings()
+    todo_entities=ha_todo_entities()
     ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines() if x.strip()]
     error=""
     success=""
 
+    selected_entity=(request.form.get("bring_entity","").strip()
+                     if request.method=="POST"
+                     else settings.get("bring_entity","").strip())
+
     if request.method=="POST":
         selected=[x.strip() for x in request.form.getlist("ingredient") if x.strip()]
-        if not selected:
+        if not selected_entity:
+            error="Bitte zuerst eine Einkaufsliste auswählen."
+        elif not selected:
             error="Bitte mindestens eine Zutat auswählen."
         else:
             try:
-                count=bring_add_items(settings.get("bring_entity",""),selected)
-                success=f"{count} ausgewählte Zutaten wurden zu Bring! hinzugefügt."
+                count=bring_add_items(selected_entity,selected)
+                # Let the chosen list become the new default.
+                current=load_settings()
+                current["bring_entity"]=selected_entity
+                save_settings(current)
+                success=f"{count} ausgewählte Zutaten wurden zur Einkaufsliste hinzugefügt."
             except Exception as exc:
                 error=str(exc)
 
@@ -998,7 +1009,8 @@ def recipe_bring():
         ingredients=ingredients,
         error=error,
         success=success,
-        bring_entity=settings.get("bring_entity",""))
+        todo_entities=todo_entities,
+        selected_entity=selected_entity)
 
 
 def recipe_own_images():

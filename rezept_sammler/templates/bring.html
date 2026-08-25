@@ -11,42 +11,61 @@
 {% if success %}<div class="notice success">{{success}}</div>{% endif %}
 
 <section class="panel form-card">
-{% if not bring_entity %}
-  <div class="notice error">
-    Noch keine Bring!-Liste ausgewählt.
-  </div>
-  <p class="subtle">Bitte zuerst unter Einstellungen die gewünschte Bring!-To-do-Liste auswählen.</p>
-  <a class="primary" href="?view=settings">⚙️ Zu den Einstellungen</a>
-{% else %}
-  <form method="post">
-    <div class="section-head">
-      <div>
-        <h2>Zutaten auswählen</h2>
-        <p class="subtle">Entferne den Haken bei Zutaten, die du bereits zu Hause hast.</p>
-      </div>
-      <div class="bulk-actions">
-        <button type="button" onclick="setAll(true)">Alle</button>
-        <button type="button" onclick="setAll(false)">Keine</button>
-      </div>
-    </div>
+<form method="post">
 
-    <div class="ingredient-checks">
-    {% for item in ingredients %}
-      <label>
-        <input type="checkbox" name="ingredient" value="{{item}}" checked>
-        <span>{{item}}</span>
-      </label>
+  <div class="bring-list-picker">
+    <label>Einkaufsliste auswählen</label>
+    {% if todo_entities %}
+    <select name="bring_entity" required>
+      <option value="">– Liste auswählen –</option>
+      {% for item in todo_entities %}
+      <option value="{{item.entity_id}}" {% if selected_entity==item.entity_id %}selected{% endif %}>
+        {{item.name}}
+      </option>
+      {% endfor %}
+    </select>
+    <p class="field-help">
+      Angezeigt werden die in Home Assistant verfügbaren To-do-Listen, darunter deine Bring!-Listen.
+      Die zuletzt verwendete Liste wird beim nächsten Mal vorausgewählt.
+    </p>
     {% else %}
-      <div class="empty-inline">Keine Zutaten im Rezept gefunden.</div>
-    {% endfor %}
+    <div class="notice error">
+      Home Assistant liefert aktuell keine To-do-Listen. Prüfe unter
+      Einstellungen → Geräte & Dienste, ob Bring! eingerichtet ist.
     </div>
+    {% endif %}
+  </div>
 
-    <div class="form-actions">
-      <a class="secondary" href="?view=recipe&id={{recipe.id}}">Abbrechen</a>
-      <button class="primary">🛒 Ausgewählte Zutaten hinzufügen</button>
+  <div class="section-head">
+    <div>
+      <h2>Zutaten auswählen</h2>
+      <p class="subtle">Entferne den Haken bei Zutaten, die du bereits zu Hause hast.</p>
     </div>
-  </form>
-{% endif %}
+    <div class="bulk-actions">
+      <button type="button" onclick="setAll(true)">Alle</button>
+      <button type="button" onclick="setAll(false)">Keine</button>
+    </div>
+  </div>
+
+  <div class="ingredient-checks">
+  {% for item in ingredients %}
+    <label>
+      <input type="checkbox" name="ingredient" value="{{item}}" checked>
+      <span>{{item}}</span>
+    </label>
+  {% else %}
+    <div class="empty-inline">Keine Zutaten im Rezept gefunden.</div>
+  {% endfor %}
+  </div>
+
+  <div class="form-actions">
+    <a class="secondary" href="?view=recipe&id={{recipe.id}}">Abbrechen</a>
+    <button class="primary" {% if not todo_entities %}disabled{% endif %}>
+      🛒 Ausgewählte Zutaten hinzufügen
+    </button>
+  </div>
+
+</form>
 </section>
 
 <script>

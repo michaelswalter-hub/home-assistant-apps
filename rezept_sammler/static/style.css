@@ -126,3 +126,6 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .bulk-actions{display:flex;gap:6px}.bulk-actions button{padding:7px 10px}
 .nutrition-calc{max-width:760px;margin:auto;text-align:center}.nutrition-grid.large{margin-bottom:20px}
 .nutrition-form{margin:18px 0}.nutrition-form button{min-width:240px}
+
+.bring-list-picker{margin-bottom:24px;padding:14px;border-radius:16px;background:var(--bg);border:1px solid var(--border)}
+.bring-list-picker select{margin-bottom:7px}

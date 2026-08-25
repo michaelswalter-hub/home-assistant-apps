@@ -57,4 +57,26 @@
 <section class="panel settings-wide mobile-more">
 <h2>Weitere Funktionen</h2><div class="more-links"><a href="?view=new">＋ Neues Rezept / Import</a></div>
 </section>
+
+<section class="panel settings-wide">
+<div class="section-head"><div><h2>🛒 Standard-Einkaufsliste</h2>
+<p class="subtle">Optional: Lege hier eine Standardliste fest. Du kannst die Liste beim Übertragen eines Rezepts jederzeit direkt auswählen.</p></div></div>
+<form method="post">
+<input type="hidden" name="action" value="save">
+<input type="hidden" name="text_model" value="{{settings.text_model}}">
+<input type="hidden" name="image_model" value="{{settings.image_model}}">
+<input type="hidden" name="image_quality" value="{{settings.image_quality}}">
+{% if settings.auto_ai_image %}<input type="hidden" name="auto_ai_image" value="1">{% endif %}
+<label>Bring!-Liste / To-do-Entität</label>
+<select name="bring_entity">
+<option value="">– Bitte auswählen –</option>
+{% for item in todo_entities %}
+<option value="{{item.entity_id}}" {% if settings.bring_entity==item.entity_id %}selected{% endif %}>{{item.name}} ({{item.entity_id}})</option>
+{% endfor %}
+</select>
+<p class="field-help">Voraussetzung: Bring! unter Home Assistant → Einstellungen → Geräte & Dienste eingerichtet.</p>
+<button class="primary">Standardliste speichern</button>
+</form>
+</section>
+
 {% endblock %}
