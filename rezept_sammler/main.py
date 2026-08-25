@@ -550,8 +550,15 @@ def add_note():
     return redirect(f"?view=recipe&id={rid}")
 
 def books():
-    con=db(); rows=con.execute("""SELECT c.id,c.name,COUNT(rc.recipe_id) count FROM cookbooks c LEFT JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id GROUP BY c.id ORDER BY c.name COLLATE NOCASE""").fetchall(); con.close()
+    con=db()
+    rows=con.execute("""SELECT c.id,c.name,c.color,c.cover,COUNT(rc.recipe_id) count
+        FROM cookbooks c
+        LEFT JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id
+        GROUP BY c.id,c.name,c.color,c.cover
+        ORDER BY c.name COLLATE NOCASE""").fetchall()
+    con.close()
     return render_template("books.html",books=rows)
+
 
 def book_new():
     if request.method=="POST":
@@ -581,10 +588,45 @@ def book_delete():
     con.close(); return render_template("book_delete.html",cookbook=cb)
 
 def book_detail():
-    cid=request.args.get("id",type=int); con=db(); cb=con.execute("SELECT * FROM cookbooks WHERE id=?",(cid,)).fetchone()
-    rows=con.execute("""SELECT r.* FROM recipes r JOIN recipe_cookbooks rc ON rc.recipe_id=r.id WHERE rc.cookbook_id=? ORDER BY r.title COLLATE NOCASE""",(cid,)).fetchall(); con.close()
-    if not cb: return redirect("?view=books")
-    return render_template("recipes.html",recipes=rows,safe_date=safe_date,title="📚 "+cb["name"])
+    cid=request.args.get("id",type=int)
+    con=db()
+    cb=con.execute("SELECT * FROM cookbooks WHERE id=?",(cid,)).fetchone()
+    if not cb:
+        con.close()
+        return redirect("?view=books")
+
+    rows=con.execute("""SELECT r.* FROM recipes r
+        JOIN recipe_cookbooks rc ON rc.recipe_id=r.id
+        WHERE rc.cookbook_id=?
+        ORDER BY r.title COLLATE NOCASE""",(cid,)).fetchall()
+
+    recipe_ids=[r["id"] for r in rows]
+    recipe_tags_by_id={}
+    if recipe_ids:
+        ph=",".join("?" for _ in recipe_ids)
+        tag_rows=con.execute(f"""SELECT rt.recipe_id,t.name,t.color
+            FROM recipe_tags rt
+            JOIN tags t ON t.id=rt.tag_id
+            WHERE rt.recipe_id IN ({ph})
+            ORDER BY t.name COLLATE NOCASE""",tuple(recipe_ids)).fetchall()
+        for tr in tag_rows:
+            recipe_tags_by_id.setdefault(tr["recipe_id"],[]).append(tr)
+
+    tags=con.execute("""SELECT t.*,COUNT(rt.recipe_id) count
+        FROM tags t LEFT JOIN recipe_tags rt ON rt.tag_id=t.id
+        GROUP BY t.id ORDER BY t.name COLLATE NOCASE""").fetchall()
+    con.close()
+
+    return render_template("recipes.html",
+        recipes=rows,
+        safe_date=safe_date,
+        title="📚 "+cb["name"],
+        q="",
+        tags=tags,
+        selected_tags=[],
+        recipe_tags_by_id=recipe_tags_by_id,
+        cookbook=cb)
+
 
 def tags():
     con=db()

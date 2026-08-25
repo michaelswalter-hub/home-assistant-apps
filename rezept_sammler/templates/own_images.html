@@ -27,14 +27,7 @@
     {% for img in gallery %}
     <article class="own-image-card">
       <img src="images/{{img.filename}}" alt="">
-      <div class="own-image-meta">
-        {% if img.is_cover %}
-          <span class="cover-badge">★ Titelbild</span>
-        {% else %}
-          <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>
-        {% endif %}
-        <a class="danger-link" href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}" onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Löschen</a>
-      </div>
+      <div class="own-image-meta"><span class="subtle">Bereits hinterlegt</span></div>
     </article>
     {% endfor %}
   </div>
@@ -47,7 +40,7 @@
 
   <div class="form-actions">
     <a href="?view=edit&id={{recipe.id}}">← Zurück zu Bearbeiten</a>
-    <a href="?view=ai_image&id={{recipe.id}}">✨ KI-Bild erzeugen</a>
+    <a href="?view=edit&id={{recipe.id}}">✏️ Bilder verwalten</a>
   </div>
 </section>
 {% endblock %}

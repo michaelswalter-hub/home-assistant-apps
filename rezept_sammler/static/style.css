@@ -84,3 +84,20 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .own-image-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}.own-image-meta{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px;font-size:12px;flex-wrap:wrap}.own-image-meta a{text-decoration:none}
 .empty-images{text-align:center;padding:32px;color:var(--muted)}.empty-images span{font-size:44px;display:block;margin-bottom:8px}
 .card-tag-row{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 10px}.card-tag-row .tag-pill{font-size:12px;padding:5px 9px}
+
+.recipe-grid{align-items:start}
+.recipe-card{overflow:hidden}
+.recipe-card-body{padding:16px 17px 18px}
+.recipe-card-body h2{margin:0 0 10px}
+.card-tag-row{position:static!important;margin:0 0 12px!important;padding:0!important;display:flex;flex-wrap:wrap;gap:7px}
+.recipe-card .hero{position:static!important;margin:0!important}
+.recipe-count{margin:10px 0 4px}
+.edit-gallery-section{margin:22px 0 8px;padding-top:18px;border-top:1px solid var(--border)}
+.edit-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px;margin-top:12px}
+.edit-image-card{overflow:hidden;border:1px solid var(--border);border-radius:15px;background:var(--card)}
+.edit-image-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.edit-image-actions{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:8px;font-size:12px;flex-wrap:wrap}
+.edit-image-actions a{text-decoration:none}.empty-inline{padding:14px;border-radius:13px;background:var(--bg);color:var(--muted)}
+.book-cover-frame{position:relative;border-radius:8px 15px 15px 8px;overflow:hidden;box-shadow:0 16px 30px rgba(0,0,0,.18);background:var(--book-color);padding-left:8px}
+.book-cover-frame .book-cover-img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:0 12px 12px 0;display:block}
+.book-color-edge{position:absolute;left:0;top:0;bottom:0;width:10px;background:var(--book-color);box-shadow:inset -3px 0 rgba(0,0,0,.14)}

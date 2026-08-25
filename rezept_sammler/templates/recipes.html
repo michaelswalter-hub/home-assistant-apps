@@ -1,18 +1,65 @@
 {% extends "base.html" %}{% block content %}
-<h1>{{ title or "Meine Rezepte" }}</h1><form class="recipe-search" method="get"><input type="hidden" name="view" value="recipes"><input type="search" name="q" value="{{q or ''}}" placeholder="🔎 Rezepte, Zutaten, Kochbücher oder Notizen suchen …">{% if q %}<a class="secondary search-clear" href="?view=recipes">✕</a>{% endif %}</form>{% if tags %}<form class="tag-filter" method="get">{% if q %}<input type="hidden" name="q" value="{{q}}">{% endif %}<div class="tag-filter-row">
-{% for t in tags %}<label class="filter-chip tag-arrow {% if t.id in selected_tags %}active{% endif %}" style="--tag-color:{{t.color or '#5b7cfa'}}"><input type="checkbox" name="tag" value="{{t.id}}" {% if t.id in selected_tags %}checked{% endif %} onchange="this.form.submit()"><span># {{t.name}} <small>{{t.count}}</small></span></label>{% endfor %}
-{% if selected_tags %}<a class="clear-tags" href="?{% if q %}q={{q|urlencode}}{% endif %}">Filter löschen</a>{% endif %}</div></form>{% endif %}{% if q %}<p class="hint">{{recipes|length}} Treffer für „{{q}}“</p>{% endif %}<div class="grid">
-{% for r in recipes %}<article class="card recipe-card" onclick="location.href='?view=recipe&id={{r.id}}'">
-{% if r.image %}<img class="hero" src="images/{{r.image}}">{% else %}<div class="hero placeholder">🍽️</div>{% endif %}
-<div class="pad"><h2>{{r.title}}</h2>
-{% set card_tags=recipe_tags_by_id.get(r.id,[]) %}
-{% if card_tags %}
-<div class="card-tag-row">
-{% for tag in card_tags %}<span class="tag-pill" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{% if cookbook %}KOCHBUCH{% else %}REZEPTE{% endif %}</p>
+    <h1>{{title or "Alle Rezepte"}}</h1>
+    {% if cookbook %}<p class="subtle">Rezepte aus „{{cookbook.name}}“</p>{% endif %}
+  </div>
 </div>
+
+<form class="recipe-search" method="get">
+  <input type="search" name="q" value="{{q or ''}}" placeholder="🔎 Rezepte, Zutaten, Kochbücher oder Notizen suchen …">
+  {% if q %}<a class="secondary search-clear" href="./">✕</a>{% endif %}
+</form>
+
+{% if tags and not cookbook %}
+<form class="tag-filter" method="get">
+  {% if q %}<input type="hidden" name="q" value="{{q}}">{% endif %}
+  <div class="tag-filter-row">
+  {% for t in tags %}
+    <label class="filter-chip {% if t.id in selected_tags %}active{% endif %}" style="--tag-color:{{t.color or '#5b7cfa'}}">
+      <input type="checkbox" name="tag" value="{{t.id}}" {% if t.id in selected_tags %}checked{% endif %} onchange="this.form.submit()">
+      <span># {{t.name}} <small>{{t.count}}</small></span>
+    </label>
+  {% endfor %}
+  {% if selected_tags %}<a class="clear-tags" href="?{% if q %}q={{q|urlencode}}{% endif %}">Filter löschen</a>{% endif %}
+  </div>
+</form>
 {% endif %}
-{% if r.avg_rating is defined %}<div class="stars">{% set a=(r.avg_rating or 0)|round|int %}{{"★"*a}}{{"☆"*(5-a)}}</div>
-<p>🍳 {{r.cooked_count}}× gekocht</p>{% if r.last_cooked %}<small>Zuletzt: {{safe_date(r.last_cooked)}}</small>{% endif %}{% endif %}
-{% if r.book %}<small>📚 {{r.book}}</small>{% endif %}</div></article>
-{% else %}<div class="card pad"><h2>Noch keine Rezepte</h2><a class="primary" href="?view=new">＋ Erstes Rezept</a></div>{% endfor %}
-</div>{% endblock %}
+
+{% if q %}<p class="hint">{{recipes|length}} Treffer für „{{q}}“</p>{% endif %}
+
+<div class="grid recipe-grid">
+{% for r in recipes %}
+<article class="card recipe-card" onclick="location.href='?view=recipe&id={{r.id}}'">
+  {% if r.image %}
+    <img class="hero" src="images/{{r.image}}" alt="">
+  {% else %}
+    <div class="hero placeholder">🍽️</div>
+  {% endif %}
+
+  <div class="recipe-card-body">
+    <h2>{{r.title}}</h2>
+
+    {% set card_tags=recipe_tags_by_id.get(r.id,[]) %}
+    {% if card_tags %}
+    <div class="card-tag-row">
+      {% for tag in card_tags %}
+      <span class="tag-pill" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if r.book %}<small>📚 {{r.book}}</small>{% endif %}
+    {% if r.cooked_count is defined %}<p class="recipe-count">🍳 {{r.cooked_count}}× gekocht</p>{% endif %}
+    {% if r.last_cooked is defined and r.last_cooked %}<small>Zuletzt: {{safe_date(r.last_cooked)}}</small>{% endif %}
+  </div>
+</article>
+{% else %}
+<div class="empty-state">
+  <span>🍽️</span><h2>Keine Rezepte gefunden</h2>
+  {% if not cookbook %}<a class="primary" href="?view=new">＋ Rezept hinzufügen</a>{% endif %}
+</div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -102,11 +102,46 @@ renumberSteps();
 
 {% if recipe %}
 <hr class="soft-rule">
+
+{% if recipe %}
+<section class="edit-gallery-section">
+  <div class="section-head">
+    <div>
+      <label>Rezeptbilder</label>
+      <p class="subtle">Hier kannst du das Titelbild festlegen oder Bilder löschen.</p>
+    </div>
+    <a href="?view=own_images&id={{recipe.id}}">＋ Eigene Bilder hinzufügen</a>
+  </div>
+
+  {% if gallery %}
+  <div class="edit-gallery">
+    {% for img in gallery %}
+    <article class="edit-image-card">
+      <img src="images/{{img.filename}}" alt="">
+      <div class="edit-image-actions">
+        {% if img.is_cover %}
+          <span class="cover-badge">★ Titelbild</span>
+        {% else %}
+          <a href="?view=image_cover&id={{recipe.id}}&image_id={{img.id}}">☆ Als Titelbild</a>
+        {% endif %}
+        <a class="danger-link"
+           href="?view=image_delete&id={{recipe.id}}&image_id={{img.id}}"
+           onclick="return confirm('Dieses Bild wirklich löschen?')">🗑 Löschen</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-inline">Noch keine Bilder vorhanden.</div>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="edit-management">
   <h2>Rezept verwalten</h2>
   <div class="manage-actions">
     <a class="manage-card" href="?view=own_images&id={{recipe.id}}">
-      <span>🖼️</span><div><b>Eigene Bilder</b><small>Fotos hinzufügen, Titelbild wählen oder Bilder löschen.</small></div><i>›</i>
+      <span>🖼️</span><div><b>Eigene Bilder hinzufügen</b><small>Weitere Fotos aus Fotomediathek oder Dateien ergänzen.</small></div><i>›</i>
     </a>
     <a class="manage-card" href="?view=ai_image&id={{recipe.id}}">
       <span>✨</span><div><b>KI-Bild erzeugen</b><small>Ein weiteres Bild zur Galerie hinzufügen.</small></div><i>›</i>
