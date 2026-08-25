@@ -319,3 +319,21 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 /* 0.5.16 – Tags in der Rezeptübersicht erst bei Suche anzeigen */
 .recipe-tag-filters.is-hidden{display:none!important}
 .recipe-tag-filters{margin-top:10px}
+
+/* 0.5.19 – Portionen und Schritt-Karten */
+.portion-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0 12px;padding:12px 14px;border:1px solid var(--border);border-radius:15px;background:var(--card)}
+.portion-toolbar small{display:block;color:var(--muted);margin-bottom:5px}
+.portion-picker{display:inline-flex;align-items:center;gap:8px}
+.portion-btn{width:32px;height:32px;padding:0!important;display:grid;place-items:center;border-radius:9px!important;background:var(--bg)!important;border:1px solid var(--border)!important;font-size:19px!important}
+#portion-count{min-width:34px;text-align:center;font-weight:800;font-size:17px}
+.portion-hint{font-size:12px;color:var(--muted);text-align:right}
+
+.recipe-step-list{display:flex;flex-direction:column;gap:9px}
+.recipe-step-card{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px;border-radius:11px;background:var(--bg);border:1px solid var(--border)}
+.recipe-step-number{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--card);border:1px solid var(--border);font-weight:800;color:var(--accent)}
+.recipe-step-text{padding-top:4px;line-height:1.45}
+
+@media(max-width:600px){
+  .portion-toolbar{align-items:flex-start}
+  .portion-hint{max-width:145px}
+}

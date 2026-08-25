@@ -76,6 +76,11 @@ def init_db():
         is_cover INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT '',
         UNIQUE(recipe_id, filename))""")
+    con.execute("""CREATE TABLE IF NOT EXISTS ingredient_state (
+        recipe_id INTEGER NOT NULL,
+        ingredient TEXT NOT NULL,
+        checked INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(recipe_id, ingredient))""")
     # Existing single recipe image becomes the first gallery/cover image.
     for rr in con.execute("SELECT id,image,image_source FROM recipes WHERE image IS NOT NULL AND image!=''").fetchall():
         exists=con.execute("SELECT 1 FROM recipe_images WHERE recipe_id=? AND filename=?",(rr["id"],rr["image"])).fetchone()
@@ -249,7 +254,13 @@ def ai_scan_recipe(file):
  "servings": "Portionsangabe oder leer",
  "prep_minutes": Zahl oder 0,
  "cook_minutes": Zahl oder 0,
- "total_minutes": Zahl oder 0
+ "total_minutes": Zahl oder 0,
+ "calories_total": Zahl oder 0,
+ "calories_serving": Zahl oder 0,
+ "protein_g": Zahl oder 0,
+ "carbs_g": Zahl oder 0,
+ "fat_g": Zahl oder 0,
+ "fiber_g": Zahl oder 0
 }
 Übernimm Mengen und Einheiten möglichst exakt. Wenn die Zutaten im Original gruppiert sind, erhalte diese Gruppen mit Überschriften wie **Für das Dressing** als eigene Zeile. Entferne Werbung, Seitenköpfe, Bildunterschriften und sonstigen Zeitungstext. Erfinde keine fehlenden Angaben."""
     payload={
@@ -272,6 +283,12 @@ def ai_scan_recipe(file):
         "prep_minutes":int(obj.get("prep_minutes",0) or 0),
         "cook_minutes":int(obj.get("cook_minutes",0) or 0),
         "total_minutes":int(obj.get("total_minutes",0) or 0),
+        "calories_total":float(obj.get("calories_total",0) or 0),
+        "calories_serving":float(obj.get("calories_serving",0) or 0),
+        "protein_g":float(obj.get("protein_g",0) or 0),
+        "carbs_g":float(obj.get("carbs_g",0) or 0),
+        "fat_g":float(obj.get("fat_g",0) or 0),
+        "fiber_g":float(obj.get("fiber_g",0) or 0),
         "scan_image":scan_image
     }
 
@@ -337,6 +354,17 @@ def iso_duration_minutes(value):
     days=int(m.group(1) or 0); hours=int(m.group(2) or 0); mins=int(m.group(3) or 0)
     secs=int(m.group(4) or 0)
     return days*1440+hours*60+mins+(1 if secs>=30 else 0)
+
+def servings_count(value):
+    text=str(value or "").strip().replace(",", ".")
+    hit=re.search(r"(\d+(?:\.\d+)?)",text)
+    if not hit:
+        return 0
+    try:
+        num=float(hit.group(1))
+        return int(num) if num.is_integer() else num
+    except Exception:
+        return 0
 
 def ingredient_groups(text):
     groups=[]
@@ -585,7 +613,7 @@ def index():
     routes = {
         "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "ingredient_toggle": ingredient_toggle, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
     }
     return routes[view]() if view in routes else recipe_list()
 
@@ -730,10 +758,13 @@ def recipe_detail():
     gallery=con.execute("""SELECT * FROM recipe_images
         WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
     ingredient_sections=ingredient_groups(r["ingredients"] or "")
+    base_servings=servings_count(r["servings"] or "")
+    checked_ingredients={x["ingredient"] for x in con.execute(
+        "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
     con.close()
     return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,
         cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],
-        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections)
+        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections,checked_ingredients=checked_ingredients,base_servings=base_servings)
 
 def edit_recipe():
     rid=request.args.get("id",type=int)
@@ -994,12 +1025,15 @@ def scan_recipe():
                 con=db()
                 cur=con.execute("""INSERT INTO recipes
                     (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
-                     servings,prep_minutes,cook_minutes,total_minutes)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                     servings,prep_minutes,cook_minutes,total_minutes,
+                     calories_total,calories_serving,protein_g,carbs_g,fat_g,fiber_g)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (title,request.form.get("ingredients","").strip(),form_steps(),"",
                      datetime.now().isoformat(),"","","","KI-Scan",
                      request.form.get("servings","").strip(),int_form("prep_minutes"),
-                     int_form("cook_minutes"),int_form("total_minutes")))
+                     int_form("cook_minutes"),int_form("total_minutes"),
+                     float_form("calories_total"),float_form("calories_serving"),
+                     float_form("protein_g"),float_form("carbs_g"),float_form("fat_g"),float_form("fiber_g")))
                 rid=cur.lastrowid
                 for cid in request.form.getlist("cookbooks"):
                     con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
@@ -1084,39 +1118,56 @@ def recipe_nutrition():
     return render_template("nutrition.html",recipe=recipe,error=error,success=success)
 
 
+def ingredient_toggle():
+    rid=request.args.get("id",type=int)
+    ingredient=request.form.get("ingredient","").strip()
+    checked=1 if request.form.get("checked")=="1" else 0
+    if rid and ingredient:
+        con=db()
+        con.execute("""INSERT INTO ingredient_state(recipe_id,ingredient,checked)
+            VALUES(?,?,?)
+            ON CONFLICT(recipe_id,ingredient) DO UPDATE SET checked=excluded.checked""",
+            (rid,ingredient,checked))
+        con.commit(); con.close()
+    return ("",204)
+
 def recipe_bring():
     rid=request.args.get("id",type=int)
     con=db()
     recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
-    con.close()
     if not recipe:
+        con.close()
         return redirect("./")
+
+    checked={x["ingredient"] for x in con.execute(
+        "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
+    con.close()
 
     settings=load_settings()
     todo_entities=ha_todo_entities()
-    diagnostics=ha_connection_diagnostics()
-    ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines() if x.strip()]
+    all_ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines()
+                     if x.strip() and not re.fullmatch(r"-{3,}",x.strip())
+                     and not re.fullmatch(r"\*\*(.+?)\*\*",x.strip())]
+    ingredients=[x for x in all_ingredients if x not in checked]
+
     error=""
     success=""
-
     selected_entity=(request.form.get("bring_entity","").strip()
                      if request.method=="POST"
                      else settings.get("bring_entity","").strip())
 
     if request.method=="POST":
-        selected=[x.strip() for x in request.form.getlist("ingredient") if x.strip()]
         if not selected_entity:
             error="Bitte zuerst eine Einkaufsliste auswählen."
-        elif not selected:
-            error="Bitte mindestens eine Zutat auswählen."
+        elif not ingredients:
+            error="Alle Zutaten sind bereits als vorhanden markiert."
         else:
             try:
-                count=bring_add_items(selected_entity,selected)
-                # Let the chosen list become the new default.
+                count=bring_add_items(selected_entity,ingredients)
                 current=load_settings()
                 current["bring_entity"]=selected_entity
                 save_settings(current)
-                success=f"{count} ausgewählte Zutaten wurden zur Einkaufsliste hinzugefügt."
+                success=f"{count} Zutaten wurden zur Einkaufsliste hinzugefügt."
             except Exception as exc:
                 error=str(exc)
 
@@ -1126,7 +1177,7 @@ def recipe_bring():
         error=error,
         success=success,
         todo_entities=todo_entities,
-        selected_entity=selected_entity,diagnostics=diagnostics)
+        selected_entity=selected_entity)
 
 
 def recipe_own_images():

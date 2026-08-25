@@ -47,6 +47,20 @@
   </div>
 </section>
 {% endif %}
+
+{% if base_servings %}
+<div class="portion-toolbar" data-base-servings="{{base_servings}}">
+  <div>
+    <small>Portionen anpassen</small>
+    <div class="portion-picker">
+      <button type="button" class="portion-btn" onclick="changePortions(-1)">−</button>
+      <span id="portion-count">{{base_servings}}</span>
+      <button type="button" class="portion-btn" onclick="changePortions(1)">＋</button>
+    </div>
+  </div>
+  <span class="portion-hint">Zutatenmengen werden nur in der Anzeige angepasst.</span>
+</div>
+{% endif %}
 <div class="cols"><section class="card pad ingredients-card">
 <h2>🥕 Zutaten</h2>
 <div class="ingredient-groups">
@@ -55,16 +69,125 @@
     {% if group["title"] %}<h3>{{group["title"]}}</h3>{% endif %}
     <ul>
     {% for item in group["items"] %}
-      <li>{{item}}</li>
+      <li class="ingredient-check-row {% if item in checked_ingredients %}is-checked{% endif %}">
+        <label>
+          <input type="checkbox"
+                 data-ingredient="{{item}}"
+                 {% if item in checked_ingredients %}checked{% endif %}
+                 onchange="toggleIngredient(this)">
+          <span class="ingredient-text" data-original="{{item|e}}">{{item}}</span>
+        </label>
+      </li>
     {% endfor %}
     </ul>
   </section>
 {% endfor %}
 </div>
 </section>
-<section class="card pad"><h2>👨‍🍳 Zubereitung</h2><ol>{% for x in recipe.steps.splitlines() if x.strip() %}<li>{{x}}</li>{% endfor %}</ol></section></div>
+<section class="card pad">
+<h2>👨‍🍳 Zubereitung</h2>
+<div class="recipe-step-list">
+{% for x in recipe.steps.splitlines() if x.strip() %}
+  <div class="recipe-step-card">
+    <div class="recipe-step-number">{{loop.index}}</div>
+    <div class="recipe-step-text">{{x}}</div>
+  </div>
+{% endfor %}
+</div>
+</section></div>
 <section class="card pad"><h2>📝 Koch-Timeline</h2><form method="post" action="?view=note&id={{recipe.id}}">
 <select name="rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select>
 <textarea name="note" placeholder="Heute gemacht – war sehr gut."></textarea><button class="primary">＋ Eintragen</button></form>
 <div class="timeline">{% for n in notes %}<div><b>{{safe_date(n.cooked_at)}}</b><span class="stars">{{"★"*n.rating}}{{"☆"*(5-n.rating)}}</span><p>{{n.note}}</p></div>{% else %}<p>Noch keine Einträge.</p>{% endfor %}</div></section>
+
+<script>
+(function(){
+  const toolbar=document.querySelector('.portion-toolbar');
+  if(!toolbar) return;
+
+  const base=parseFloat(toolbar.dataset.baseServings || '0');
+  let current=base || 1;
+
+  function parseAmount(raw){
+    const s=raw.trim();
+
+    // mixed number: 1 1/2
+    let m=s.match(/^(\d+)\s+(\d+)\/(\d+)(\s+.*)?$/);
+    if(m){
+      const val=parseFloat(m[1])+parseFloat(m[2])/parseFloat(m[3]);
+      return {value:val,rest:m[4]||'',kind:'mixed'};
+    }
+
+    // simple fraction: 1/2
+    m=s.match(/^(\d+)\/(\d+)(\s+.*)?$/);
+    if(m){
+      return {value:parseFloat(m[1])/parseFloat(m[2]),rest:m[3]||'',kind:'fraction'};
+    }
+
+    // decimal/integer, comma or dot
+    m=s.match(/^(\d+(?:[.,]\d+)?)(\s+.*)?$/);
+    if(m){
+      return {value:parseFloat(m[1].replace(',','.')),rest:m[2]||'',kind:'number'};
+    }
+    return null;
+  }
+
+  function prettyNumber(v){
+    if(Math.abs(v-Math.round(v))<0.001) return String(Math.round(v));
+
+    const fractions=[
+      [0.25,'¼'],[0.333,'⅓'],[0.5,'½'],[0.667,'⅔'],[0.75,'¾']
+    ];
+    const whole=Math.floor(v);
+    const frac=v-whole;
+    for(const [target,symbol] of fractions){
+      if(Math.abs(frac-target)<0.03){
+        return (whole?whole+' ':'')+symbol;
+      }
+    }
+
+    return String(Math.round(v*100)/100).replace('.',',');
+  }
+
+  function updateIngredients(){
+    if(!base) return;
+    const factor=current/base;
+    document.querySelectorAll('.ingredient-text').forEach(el=>{
+      const original=el.dataset.original || el.textContent;
+      const parsed=parseAmount(original);
+      if(!parsed){
+        el.textContent=original;
+        return;
+      }
+      el.textContent=prettyNumber(parsed.value*factor)+parsed.rest;
+    });
+    const out=document.getElementById('portion-count');
+    if(out) out.textContent=prettyNumber(current);
+  }
+
+  window.changePortions=function(delta){
+    current=Math.max(1,current+delta);
+    updateIngredients();
+  };
+
+  updateIngredients();
+})();
+</script>
+
 {% endblock %}
+<script>
+async function toggleIngredient(box){
+  const form=new URLSearchParams();
+  form.set('ingredient',box.dataset.ingredient);
+  form.set('checked',box.checked?'1':'0');
+  const row=box.closest('.ingredient-check-row');
+  if(row) row.classList.toggle('is-checked',box.checked);
+  try{
+    await fetch('?view=ingredient_toggle&id={{recipe.id}}',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:form.toString()
+    });
+  }catch(e){}
+}
+</script>
