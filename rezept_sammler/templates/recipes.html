@@ -8,7 +8,7 @@
 </div>
 
 <form class="recipe-search" method="get">
-  <input type="search" name="q" value="{{q or ''}}" placeholder="🔎 Rezepte, Zutaten, Kochbücher oder Notizen suchen …">
+  <input type="search"  id="recipe-search"name="q" value="{{q or ''}}" placeholder="🔎 Rezepte, Zutaten, Kochbücher oder Notizen suchen …">
   {% if q %}<a class="secondary search-clear" href="./">✕</a>{% endif %}
 </form>
 
@@ -63,3 +63,25 @@
 {% endfor %}
 </div>
 {% endblock %}
+<script>
+(function(){
+  const search=document.getElementById('recipe-search');
+  const tags=document.getElementById('recipe-tag-filters');
+  if(!search || !tags) return;
+
+  function showTags(){ tags.classList.remove('is-hidden'); }
+  function hideTags(){
+    if(!search.value.trim() && !tags.querySelector('.active,.selected,[aria-pressed="true"]')){
+      tags.classList.add('is-hidden');
+    }
+  }
+  search.addEventListener('focus',showTags);
+  search.addEventListener('click',showTags);
+  search.addEventListener('input',()=>{ if(search.value.trim()) showTags(); });
+  document.addEventListener('click',e=>{
+    if(!search.contains(e.target) && !tags.contains(e.target)) hideTags();
+  });
+
+  if(search.value.trim() || tags.querySelector('.active,.selected,[aria-pressed="true"]')) showTags();
+})();
+</script>

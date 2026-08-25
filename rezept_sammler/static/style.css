@@ -299,3 +299,23 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
     margin-left:auto;
   }
 }
+
+/* 0.5.15 ingredient availability */
+.ingredient-check-row label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-weight:500}
+.ingredient-check-row input{width:auto;margin:2px 0 0;accent-color:var(--accent)}
+.ingredient-check-row.is-checked span{text-decoration:line-through;opacity:.48}
+.ingredient-check-row.is-checked{background:color-mix(in srgb,var(--success) 7%,var(--bg))}
+
+/* Bring summary */
+.bring-summary{margin:18px 0;padding:14px;border-radius:16px;border:1px solid var(--border);background:var(--bg)}
+.bring-summary ul{margin:10px 0 0;padding-left:20px}.bring-summary li{padding:4px 0}
+.summary-count{padding:5px 8px;border-radius:999px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)}
+.all-done{color:var(--success);font-weight:700}
+
+/* Settings compact plus */
+.settings-plus{width:34px;height:34px;display:grid;place-items:center;text-decoration:none;border-radius:10px;background:#dff3ff;color:#1779aa!important;border:1px solid #b9e3f7;font-size:22px;line-height:1}
+.settings-plus:hover{background:#cdeeff}
+
+/* 0.5.16 – Tags in der Rezeptübersicht erst bei Suche anzeigen */
+.recipe-tag-filters.is-hidden{display:none!important}
+.recipe-tag-filters{margin-top:10px}
