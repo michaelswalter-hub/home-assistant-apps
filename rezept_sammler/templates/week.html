@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<div class="week-head"><a href="?view=week&week={{(monday-timedelta(days=7)).isoformat()}}">←</a><div><h1>📅 Wochenplan</h1><small>{{monday.strftime("%d.%m.%Y")}} – {{(monday+timedelta(days=6)).strftime("%d.%m.%Y")}}</small></div><a href="?view=week&week={{(monday+timedelta(days=7)).isoformat()}}">→</a></div>
+<div class="week-grid">{% set names=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"] %}
+{% set meals=[("morgen","☕ Morgen"),("mittag","🍽 Mittag"),("abend","🌙 Abend")] %}
+{% for i in range(7) %}{% set d=monday+timedelta(days=i) %}<section class="day {% if d==today %}today{% endif %}"><h3>{{names[i]}}<small>{{d.strftime("%d.%m.")}}</small></h3>
+{% for meal,label in meals %}{% set item=plan.get((d.isoformat(),meal)) %}<div class="slot" data-date="{{d.isoformat()}}" data-meal="{{meal}}" ondragover="event.preventDefault()" ondrop="dropMeal(event,this)">
+<b>{{label}}</b>{% if item %}<div class="meal-card" draggable="true" data-id="{{item.recipe_id}}" data-date="{{d.isoformat()}}" data-meal="{{meal}}" ondragstart="dragMeal(event,this)">
+{% if item.image %}<img src="images/{{item.image}}">{% endif %}<span>{{item.title}}</span></div>{% endif %}
+<select onchange="setMeal(this)"><option value="">+ Rezept hinzufügen / leeren</option>{% for r in recipes %}<option value="{{r.id}}" {% if item and item.recipe_id==r.id %}selected{% endif %}>{{r.title}}</option>{% endfor %}</select></div>{% endfor %}</section>{% endfor %}</div>
+<p class="hint">Tablet/Desktop: Rezeptkarte ziehen. iPhone: Auswahlfeld zum Verschieben/Ändern verwenden.</p>{% endblock %}

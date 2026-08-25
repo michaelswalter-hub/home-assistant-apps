@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">KI-BILD</p><h1>✨ Bild für {{recipe.title}}</h1><p class="subtle">Die KI erzeugt ein neues Food-Foto aus deinem Rezept.</p></div></div>
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+<section class="panel ai-preview">
+{% if generated %}
+<img class="generated-image" src="images/{{generated}}">
+<div class="form-actions"><form method="post"><input type="hidden" name="action" value="use"><input type="hidden" name="filename" value="{{generated}}"><button class="primary">✓ Bild übernehmen</button></form>
+<form method="post"><input type="hidden" name="action" value="generate"><button>↻ Neu erzeugen</button></form></div>
+{% else %}
+<div class="scan-icon">✨</div><h2>Noch kein neues Bild erzeugt</h2><form method="post"><input type="hidden" name="action" value="generate"><button class="primary">✨ KI-Bild erzeugen</button></form>
+{% endif %}
+<a href="?view=recipe&id={{recipe.id}}">← Zurück zum Rezept</a>
+</section>{% endblock %}

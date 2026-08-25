@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">KONFIGURATION</p><h1>⚙️ Einstellungen</h1><p class="subtle">KI, Tags und App-Verhalten zentral verwalten.</p></div></div>
+{% if message %}<div class="notice success">{{message}}</div>{% endif %}
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+<div class="settings-grid">
+<section class="panel">
+<h2>✨ Cloud-KI</h2>
+<p class="subtle">Der Schlüssel wird nur unter <code>/data</code> dieser Home-Assistant-App gespeichert.</p>
+<form method="post">
+<input type="hidden" name="action" value="save">
+<label>OpenAI API-Schlüssel</label>
+<input type="password" name="api_key" placeholder="{{masked_key}}" autocomplete="new-password">
+<small class="field-help">Leer lassen, um den vorhandenen Schlüssel beizubehalten.</small>
+<label>Text-/Vision-Modell</label><input name="text_model" value="{{settings.text_model}}">
+<label>Bildmodell</label><input name="image_model" value="{{settings.image_model}}">
+<label class="switch-row"><input type="checkbox" name="auto_ai_image" value="1" {% if settings.auto_ai_image %}checked{% endif %}><span>Nach einem KI-Scan automatisch ein Rezeptbild erzeugen</span></label>
+<label class="switch-row danger-zone"><input type="checkbox" name="clear_key" value="1"><span>Gespeicherten API-Schlüssel löschen</span></label>
+<button class="primary">Speichern</button>
+</form>
+<form method="post" class="inline-test"><input type="hidden" name="action" value="test"><button>Verbindung testen</button></form>
+</section>
+<section class="panel">
+<div class="section-head"><div><h2>🏷️ Tags</h2><p class="subtle">Tags erscheinen als farbige Pillen in den Rezepten.</p></div><a class="primary small" href="?view=tag_new">＋ Tag</a></div>
+<div class="settings-tags">
+{% for t in tags %}
+<div class="settings-tag"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span><span><a href="?view=tag_rename&id={{t.id}}">✏️</a> <a href="?view=tag_delete&id={{t.id}}">🗑</a></span></div>
+{% else %}<p class="subtle">Noch keine Tags.</p>{% endfor %}
+</div>
+</section>
+</div>
+{% endblock %}

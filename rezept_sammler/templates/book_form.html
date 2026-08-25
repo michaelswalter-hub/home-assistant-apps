@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<section class="panel form-card">
+<p class="eyebrow">KOCHBUCH</p><h1>{{"Neues Kochbuch" if mode=="new" else "Kochbuch bearbeiten"}}</h1>
+<form method="post">
+<label>Name</label><input name="name" required value="{{cookbook.name if cookbook else ''}}" placeholder="z. B. Italienische Küche">
+<label>Buchfarbe</label>
+<div class="color-picker">
+{% set current = cookbook.color if cookbook and cookbook.color else '#6f5bd3' %}
+{% for color in ['#6f5bd3','#d35d7f','#2f8f83','#d18936','#4d78c8','#a05aa8','#6a7f43','#a65d4d','#566272','#a17b45'] %}
+<label class="color-dot" style="--tag-color:{{color}}"><input type="radio" name="color" value="{{color}}" {% if current==color %}checked{% endif %}><span></span></label>
+{% endfor %}
+</div>
+<div class="form-actions"><a href="?view=books">Abbrechen</a><button class="primary">💾 Speichern</button></div>
+</form></section>{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">KOCHBUCH-COVER</p><h1>✨ {{book.name}}</h1><p class="subtle">Ein individuelles KI-Cover für dein digitales Kochbuch.</p></div></div>
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+<section class="panel ai-preview">
+{% if generated %}
+<img class="generated-image book-square" src="images/{{generated}}">
+<div class="form-actions"><form method="post"><input type="hidden" name="action" value="use"><input type="hidden" name="filename" value="{{generated}}"><button class="primary">✓ Cover übernehmen</button></form>
+<form method="post"><input type="hidden" name="action" value="generate"><button>↻ Neu erzeugen</button></form></div>
+{% else %}
+<div class="scan-icon">📕</div><h2>KI-Cover erstellen</h2><form method="post"><input type="hidden" name="action" value="generate"><button class="primary">✨ Cover erzeugen</button></form>
+{% endif %}
+<a href="?view=books">← Zurück zu Kochbüchern</a>
+</section>{% endblock %}

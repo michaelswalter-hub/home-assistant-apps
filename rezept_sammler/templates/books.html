@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">SAMMLUNG</p><h1>📚 Meine Kochbücher</h1><p class="subtle">Wie ein kleines digitales Bücherregal.</p></div>
+<a class="primary" href="?view=book_new">＋ Neues Kochbuch</a></div>
+<div class="bookshelf">
+{% for b in books %}
+<article class="book-card" style="--book-color:{{b.color or '#6f5bd3'}}">
+  <a class="book-cover-link" href="?view=book&id={{b.id}}">
+    {% if b.cover %}
+      <img class="book-cover-img" src="images/{{b.cover}}" alt="">
+    {% else %}
+      <div class="book-cover-placeholder"><span>🍴</span><b>{{b.name}}</b></div>
+    {% endif %}
+    <div class="book-spine"><span>{{b.name}}</span></div>
+  </a>
+  <div class="book-meta"><b>{{b.name}}</b><small>{{b.count}} Rezepte</small></div>
+  <div class="book-actions">
+    <a href="?view=book_cover&id={{b.id}}">✨ Cover</a>
+    <a href="?view=book_rename&id={{b.id}}">✏️</a>
+    <a class="danger-link" href="?view=book_delete&id={{b.id}}">🗑</a>
+  </div>
+</article>
+{% else %}
+<div class="empty-state"><span>📚</span><h2>Noch kein Kochbuch</h2><p>Erstelle dein erstes digitales Kochbuch.</p><a class="primary" href="?view=book_new">＋ Kochbuch erstellen</a></div>
+{% endfor %}
+</div>
+{% endblock %}

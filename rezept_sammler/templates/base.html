@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7fb">
+<title>{{ title or "Meine Rezepte" }}</title>
+<link rel="stylesheet" href="static/style.css">
+</head><body>
+<div class="app-shell">
+<header class="app-header">
+  <a class="brand" href="./"><span class="brand-icon">🍲</span><span><b>Meine Rezepte</b><small>0.4.0</small></span></a>
+  <nav class="top-nav">
+    <a href="./">Rezepte</a>
+    <a href="?view=books">Kochbücher</a>
+    <a href="?view=week">Wochenplan</a>
+    <a href="?view=import">Import</a>
+    <a href="?view=scan">📷 Scannen</a>
+    <a href="?view=settings">⚙️</a>
+    <a class="primary" href="?view=new">＋ Rezept</a>
+  </nav>
+</header>
+<main class="content">{% block content %}{% endblock %}</main>
+</div>
+<script src="static/week.js"></script>
+</body></html>

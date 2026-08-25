@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block content %}<section class="card pad"><h1>Rezept löschen?</h1>
+<p><b>{{recipe.title}}</b> wirklich endgültig löschen?</p><form method="post"><button class="danger">🗑 Ja, löschen</button> <a href="?view=recipe&id={{recipe.id}}">Abbrechen</a></form></section>{% endblock %}

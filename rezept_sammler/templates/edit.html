@@ -1,0 +1,106 @@
+{% extends "base.html" %}{% block content %}
+<section class="card pad form">
+<h1>{{"Rezept bearbeiten" if recipe else "Neues Rezept"}}</h1>
+<form method="post" enctype="multipart/form-data">
+
+<label>Rezeptname</label>
+<input name="title" required value="{{recipe.title if recipe else ''}}">
+
+<label>Kochbücher</label>
+<div class="cookbook-picker">
+{% for b in cookbooks %}
+<label class="book-choice">
+<input type="checkbox" name="cookbooks" value="{{b.id}}" {% if b.id in selected_cookbooks %}checked{% endif %}>
+<span>📚 {{b.name}}</span>
+</label>
+{% else %}
+<p>Noch keine Kochbücher. <a href="?view=book_new">Jetzt erstellen</a>.</p>
+{% endfor %}
+</div>
+<label>Tags</label>
+<div class="tag-picker">
+{% for t in tags %}<label class="tag-choice" style="--tag-color:{{t.color or '#5b7cfa'}}"><input type="checkbox" name="tags" value="{{t.id}}" {% if t.id in selected_tags %}checked{% endif %}><span># {{t.name}}</span></label>
+{% else %}<p>Noch keine Tags. <a href="?view=tag_new">Jetzt erstellen</a>.</p>{% endfor %}
+</div>
+<label>Rezeptbild</label>
+<input type="file" name="image" accept="image/*">
+{% if recipe and recipe.image %}
+<img class="preview" src="images/{{recipe.image}}">
+<label class="check"><input type="checkbox" name="remove_image" value="1"> Bild entfernen</label>
+{% endif %}
+
+{% if recipe and recipe.source_url %}
+<label>Quelle</label>
+<input name="source_name" value="{{recipe.source_name}}" placeholder="Quelle">
+<input name="source_url" value="{{recipe.source_url}}" placeholder="https://...">
+{% else %}
+<input type="hidden" name="source_name" value="">
+<input type="hidden" name="source_url" value="">
+{% endif %}
+
+<label>Zutaten</label>
+<textarea name="ingredients" placeholder="Eine Zutat pro Zeile">{{recipe.ingredients if recipe else ''}}</textarea>
+
+<div class="section-head">
+    <label style="margin:0">Zubereitung</label>
+    <button type="button" class="secondary" onclick="addStep()">＋ Schritt hinzufügen</button>
+</div>
+
+<div id="steps-list" class="steps-editor">
+{% for step in steps %}
+<div class="edit-step" draggable="true">
+    <div class="step-number">{{loop.index}}</div>
+    <textarea name="steps[]" rows="3" placeholder="Zubereitungsschritt">{{step}}</textarea>
+    <button type="button" class="icon-danger" onclick="removeStep(this)" aria-label="Schritt löschen">🗑</button>
+</div>
+{% endfor %}
+</div>
+
+{% if not steps %}
+<div id="empty-step-hint" class="hint">Noch keine Schritte. Tippe auf „＋ Schritt hinzufügen“.</div>
+{% endif %}
+
+<br>
+<button class="primary">💾 Speichern</button>
+</form>
+</section>
+
+<script>
+function renumberSteps(){
+    document.querySelectorAll('#steps-list .edit-step').forEach((el,i)=>{
+        el.querySelector('.step-number').textContent=i+1;
+    });
+    const hint=document.getElementById('empty-step-hint');
+    if(hint) hint.style.display=document.querySelectorAll('#steps-list .edit-step').length ? 'none' : 'block';
+}
+function addStep(value=''){
+    const list=document.getElementById('steps-list');
+    const row=document.createElement('div');
+    row.className='edit-step';
+    row.draggable=true;
+    row.innerHTML='<div class="step-number"></div><textarea name="steps[]" rows="3" placeholder="Zubereitungsschritt"></textarea><button type="button" class="icon-danger" onclick="removeStep(this)" aria-label="Schritt löschen">🗑</button>';
+    row.querySelector('textarea').value=value;
+    list.appendChild(row);
+    installDrag(row);
+    renumberSteps();
+    row.querySelector('textarea').focus();
+}
+function removeStep(btn){
+    btn.closest('.edit-step').remove();
+    renumberSteps();
+}
+let draggedStep=null;
+function installDrag(row){
+    row.addEventListener('dragstart',()=>{draggedStep=row; row.classList.add('dragging');});
+    row.addEventListener('dragend',()=>{row.classList.remove('dragging'); draggedStep=null; renumberSteps();});
+    row.addEventListener('dragover',(e)=>{
+        e.preventDefault();
+        if(!draggedStep || draggedStep===row) return;
+        const rect=row.getBoundingClientRect();
+        row.parentNode.insertBefore(draggedStep, e.clientY < rect.top + rect.height/2 ? row : row.nextSibling);
+    });
+}
+document.querySelectorAll('#steps-list .edit-step').forEach(installDrag);
+renumberSteps();
+</script>
+{% endblock %}

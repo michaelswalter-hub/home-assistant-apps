@@ -1,0 +1,136 @@
+{% extends "base.html" %}{% block content %}
+<div class="title-row">
+<div>
+<h1>⬇️ Rezept importieren</h1>
+<p class="hint">Webseite einlesen, Vorschau prüfen und erst danach speichern.</p>
+</div>
+</div>
+
+{% if error %}
+<div class="notice error"><b>Import nicht möglich</b><br>{{error}}</div>
+{% endif %}
+
+{% if not preview %}
+<section class="card pad form">
+<h2>🌐 Webseite</h2>
+<form method="post">
+<input type="hidden" name="action" value="preview">
+<label>Adresse des Rezepts</label>
+<input type="url" name="url" required placeholder="https://www.beispiel.de/rezept/...">
+<button class="primary">🔎 Rezept erkennen</button>
+</form>
+<p class="hint">Es wird noch nichts gespeichert.</p>
+</section>
+{% else %}
+<section class="card pad import-form">
+<h2>Vorschau bearbeiten</h2>
+<p class="hint">Kontrolliere die erkannten Angaben. Jeder Zubereitungsschritt kann einzeln geändert, gelöscht oder verschoben werden.</p>
+
+<form method="post">
+<input type="hidden" name="action" value="save">
+<input type="hidden" name="source_url" value="{{preview.source_url}}">
+<input type="hidden" name="source_name" value="{{preview.source_name}}"><input type="hidden" name="image_url" value="{{preview.image_url}}">
+
+<div class="import-top">
+<div>
+<label>Rezeptname</label>
+<input name="title" required value="{{preview.title}}">
+</div>
+<div>
+<label>Quelle</label>
+<input value="{{preview.source_name or preview.source_url}}" readonly>
+</div>
+</div>
+
+{% if preview.servings %}
+<div class="notice">👥 Erkannte Portionsangabe: {{preview.servings}}</div>
+{% endif %}
+
+{% if preview.image_url %}<div class="import-image-box"><label>Erkanntes Rezeptbild</label><img class="import-image-preview" src="{{preview.image_url}}" alt="Rezeptbild"><p class="hint">Das Bild wird beim Speichern lokal übernommen. Die Quelle bleibt am Rezept hinterlegt.</p></div>{% else %}<div class="notice ai-image-placeholder">✨ Kein Bild erkannt. Die Funktion „KI-Bild erzeugen“ ist für den nächsten Schritt vorbereitet.</div>{% endif %}<label>Kochbücher</label>
+<div class="cookbook-picker">
+{% for b in cookbooks %}
+<label class="book-choice"><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>📚 {{b.name}}</span></label>
+{% else %}<p>Noch keine Kochbücher.</p>{% endfor %}
+</div>
+
+<label>Tags</label><div class="tag-picker">
+{% for t in tags %}<label class="tag-choice" style="--tag-color:{{t.color or '#5b7cfa'}}"><input type="checkbox" name="tags" value="{{t.id}}"><span># {{t.name}}</span></label>
+{% else %}<p>Noch keine Tags.</p>{% endfor %}
+</div><div class="import-columns">
+<section class="import-panel">
+<div class="section-head"><h3>Zutaten</h3></div>
+<textarea name="ingredients" class="ingredients-area">{{preview.ingredients}}</textarea>
+</section>
+
+<section class="import-panel">
+<div class="section-head">
+<h3>Zubereitung – Schritte</h3>
+<button type="button" class="secondary" onclick="addStep()">＋ Schritt hinzufügen</button>
+</div>
+
+<div id="steps-list" class="steps-editor">
+{% for step in preview.steps_list %}
+<div class="edit-step" draggable="true">
+    <div class="step-number">{{loop.index}}</div>
+    <textarea name="steps[]" rows="3">{{step}}</textarea>
+    <button type="button" class="icon-danger" onclick="removeStep(this)">🗑</button>
+</div>
+{% endfor %}
+</div>
+
+{% if not preview.steps_list %}
+<div id="empty-step-hint" class="hint">Keine einzelnen Schritte erkannt. Du kannst sie hier manuell hinzufügen.</div>
+{% endif %}
+<p class="hint">Auf Tablet/Desktop können die Schritte per Drag & Drop sortiert werden.</p>
+</section>
+</div>
+
+<div class="notice">🔗 Quelle: {{preview.source_name or preview.source_url}}<br><small>{{preview.source_url}}</small></div>
+
+<div class="form-actions">
+<a href="?view=import">Abbrechen</a>
+<button class="primary">💾 Als Rezept speichern</button>
+</div>
+</form>
+</section>
+
+<script>
+function renumberSteps(){
+    document.querySelectorAll('#steps-list .edit-step').forEach((el,i)=>{
+        el.querySelector('.step-number').textContent=i+1;
+    });
+    const hint=document.getElementById('empty-step-hint');
+    if(hint) hint.style.display=document.querySelectorAll('#steps-list .edit-step').length ? 'none' : 'block';
+}
+function addStep(value=''){
+    const list=document.getElementById('steps-list');
+    const row=document.createElement('div');
+    row.className='edit-step';
+    row.draggable=true;
+    row.innerHTML='<div class="step-number"></div><textarea name="steps[]" rows="3"></textarea><button type="button" class="icon-danger" onclick="removeStep(this)">🗑</button>';
+    row.querySelector('textarea').value=value;
+    list.appendChild(row);
+    installDrag(row);
+    renumberSteps();
+    row.querySelector('textarea').focus();
+}
+function removeStep(btn){
+    btn.closest('.edit-step').remove();
+    renumberSteps();
+}
+let draggedStep=null;
+function installDrag(row){
+    row.addEventListener('dragstart',()=>{draggedStep=row; row.classList.add('dragging');});
+    row.addEventListener('dragend',()=>{row.classList.remove('dragging'); draggedStep=null; renumberSteps();});
+    row.addEventListener('dragover',(e)=>{
+        e.preventDefault();
+        if(!draggedStep || draggedStep===row) return;
+        const rect=row.getBoundingClientRect();
+        row.parentNode.insertBefore(draggedStep, e.clientY < rect.top + rect.height/2 ? row : row.nextSibling);
+    });
+}
+document.querySelectorAll('#steps-list .edit-step').forEach(installDrag);
+renumberSteps();
+</script>
+{% endif %}
+{% endblock %}

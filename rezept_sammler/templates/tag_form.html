@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<section class="panel form-card"><p class="eyebrow">TAG</p><h1>{{"Neuer Tag" if mode=="new" else "Tag bearbeiten"}}</h1>
+<form method="post"><label>Name</label><input name="name" required value="{{tag.name if tag else ''}}" placeholder="z. B. Vegetarisch">
+<label>Farbe</label><div class="color-picker large">
+{% set current=tag.color if tag and tag.color else '#5b7cfa' %}
+{% for color in ['#5b7cfa','#e85d75','#e49b0f','#35a36f','#8b5cf6','#0f9fb5','#d66a1f','#64748b','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#6366f1','#a855f7','#ef4444','#22c55e','#f59e0b','#0ea5e9','#78716c'] %}
+<label class="color-dot" style="--tag-color:{{color}}"><input type="radio" name="color" value="{{color}}" {% if current==color %}checked{% endif %}><span></span></label>
+{% endfor %}</div>
+<div class="form-actions"><a href="?view=settings">Abbrechen</a><button class="primary">💾 Speichern</button></div>
+</form></section>{% endblock %}

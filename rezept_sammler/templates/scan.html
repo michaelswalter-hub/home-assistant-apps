@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">KI-IMPORT</p><h1>📷 Rezept scannen</h1><p class="subtle">Zeitung, Zeitschrift oder Kochbuch fotografieren – die KI strukturiert das Rezept.</p></div></div>
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+{% if not preview %}
+<section class="panel scan-drop">
+<div class="scan-icon">📷</div><h2>Foto auswählen oder aufnehmen</h2>
+<p class="subtle">Auf dem iPhone kannst du Kamera, Fotomediathek oder Dateien verwenden.</p>
+<form method="post" enctype="multipart/form-data"><input type="hidden" name="action" value="scan">
+<input class="file-input" type="file" name="scan_image" accept="image/*" required>
+<button class="primary">✨ Mit KI erkennen</button></form>
+</section>
+{% else %}
+<section class="panel">
+<h2>Vorschau prüfen</h2><p class="subtle">Vor dem Speichern kannst du alles korrigieren.</p>
+<form method="post"><input type="hidden" name="action" value="save">
+<label>Titel</label><input name="title" value="{{preview.title}}" required>
+{% if preview.servings %}<div class="notice">👥 {{preview.servings}}</div>{% endif %}
+<label>Kochbücher</label><div class="choice-pills">{% for b in cookbooks %}<label><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>📚 {{b.name}}</span></label>{% endfor %}</div>
+<label>Tags</label><div class="choice-pills">{% for t in tags %}<label><input type="checkbox" name="tags" value="{{t.id}}"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span></label>{% endfor %}</div>
+<div class="import-columns">
+<div><label>Zutaten</label><textarea name="ingredients" class="ingredients-area">{{preview.ingredients|join('\n')}}</textarea></div>
+<div><div class="section-head"><label>Zubereitung</label><button type="button" onclick="addStep()">＋ Schritt</button></div>
+<div id="steps-list">{% for step in preview.steps %}<div class="edit-step"><div class="step-number">{{loop.index}}</div><textarea name="steps[]" rows="3">{{step}}</textarea><button type="button" class="icon-danger" onclick="this.closest('.edit-step').remove();renumberSteps()">🗑</button></div>{% endfor %}</div></div>
+</div>
+<div class="form-actions"><a href="?view=scan">Abbrechen</a><button class="primary">💾 Als Rezept speichern</button></div>
+</form></section>
+<script>
+function renumberSteps(){document.querySelectorAll('#steps-list .edit-step').forEach((e,i)=>e.querySelector('.step-number').textContent=i+1)}
+function addStep(){const l=document.getElementById('steps-list'),r=document.createElement('div');r.className='edit-step';r.innerHTML='<div class="step-number"></div><textarea name="steps[]" rows="3"></textarea><button type="button" class="icon-danger" onclick="this.closest(\\'.edit-step\\').remove();renumberSteps()">🗑</button>';l.appendChild(r);renumberSteps();r.querySelector('textarea').focus()}
+</script>
+{% endif %}{% endblock %}
