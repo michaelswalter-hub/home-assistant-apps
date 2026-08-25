@@ -568,10 +568,13 @@ def recipe_ai_image():
     if request.method=="POST":
         action=request.form.get("action","generate")
         if action=="generate":
-            try:
-                generated=ai_generate_image(recipe_image_prompt(recipe),"recipe")
-            except Exception as exc:
-                error=str(exc)
+            if request.form.get("confirm_cost")!="1":
+                error="Bitte bestätige zuerst, dass für die KI-Bildgenerierung API-Kosten entstehen können."
+            else:
+                try:
+                    generated=ai_generate_image(recipe_image_prompt(recipe),"recipe")
+                except Exception as exc:
+                    error=str(exc)
         elif action=="use":
             filename=Path(request.form.get("filename","")).name
             if filename and (IMG_DIR/filename).exists():
@@ -595,10 +598,13 @@ def book_cover():
     if request.method=="POST":
         action=request.form.get("action","generate")
         if action=="generate":
-            try:
-                generated=ai_generate_image(cookbook_cover_prompt(book["name"]),"cover")
-            except Exception as exc:
-                error=str(exc)
+            if request.form.get("confirm_cost")!="1":
+                error="Bitte bestätige zuerst, dass für die KI-Covergenerierung API-Kosten entstehen können."
+            else:
+                try:
+                    generated=ai_generate_image(cookbook_cover_prompt(book["name"]),"cover")
+                except Exception as exc:
+                    error=str(exc)
         elif action=="use":
             filename=Path(request.form.get("filename","")).name
             if filename and (IMG_DIR/filename).exists():
