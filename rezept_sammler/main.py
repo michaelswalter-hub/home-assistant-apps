@@ -292,11 +292,17 @@ def images(name):
 def index():
     view = request.args.get("view","")
     routes = {
-        "new": new_recipe, "recipe": recipe_detail, "edit": edit_recipe,
+        "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
         "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
     }
     return routes[view]() if view in routes else recipe_list()
+
+def recipe_add_menu():
+    return render_template("add_recipe.html")
+
+def pdf_import():
+    return render_template("pdf_import.html")
 
 def recipe_list():
     q=request.args.get("q","").strip()

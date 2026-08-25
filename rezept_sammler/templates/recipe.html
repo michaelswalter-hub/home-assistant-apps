@@ -3,7 +3,7 @@
 <div class="pad"><h1>{{recipe.title}}</h1><p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
 {% if recipe.source_url %}<p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>{% endif %}
 <div class="actions"><a class="primary" href="?view=cook&id={{recipe.id}}">👨‍🍳 Kochmodus</a>
-<a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a><a href="?view=ai_image&id={{recipe.id}}">✨ KI-Bild</a><a class="danger" href="?view=delete&id={{recipe.id}}">🗑 Löschen</a></div></div></article>
+<a href="?view=edit&id={{recipe.id}}">✏️ Bearbeiten</a></div></div></article>
 {% if gallery %}
 <section class="recipe-gallery">
 <div class="gallery-track">

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">NEUES REZEPT</p>
+    <h1>Wie möchtest du starten?</h1>
+    <p class="subtle">Wähle die Quelle – danach kannst du das Rezept immer noch bearbeiten.</p>
+  </div>
+</div>
+
+<div class="add-grid">
+  <a class="add-card" href="?view=create">
+    <span class="add-icon">✏️</span>
+    <div><h2>Rezept erstellen</h2><p>Alles selbst eingeben: Titel, Zutaten und Zubereitung.</p></div>
+    <span class="add-arrow">›</span>
+  </a>
+
+  <a class="add-card" href="?view=import">
+    <span class="add-icon">🌐</span>
+    <div><h2>Von Webseite importieren</h2><p>Chefkoch und andere Rezeptseiten über eine URL übernehmen.</p></div>
+    <span class="add-arrow">›</span>
+  </a>
+
+  <a class="add-card" href="?view=scan">
+    <span class="add-icon">📷</span>
+    <div><h2>Foto / Zeitung scannen</h2><p>Ein Rezept fotografieren oder ein vorhandenes Bild auswählen und von der KI erkennen lassen.</p></div>
+    <span class="add-arrow">›</span>
+  </a>
+
+  <a class="add-card" href="?view=pdf_import">
+    <span class="add-icon">📄</span>
+    <div><h2>PDF importieren</h2><p>PDF-Rezepte werden als nächster Importweg ergänzt.</p><span class="soon-badge">Vorbereitet</span></div>
+    <span class="add-arrow">›</span>
+  </a>
+</div>
+{% endblock %}

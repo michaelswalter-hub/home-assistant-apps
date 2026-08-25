@@ -57,3 +57,16 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .ai-cost-table>b{display:block;margin-bottom:7px}.ai-cost-table>div{display:grid;grid-template-columns:130px 1fr;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)}
 .ai-cost-table small{display:block;color:var(--muted);margin-top:8px}
 @media(max-width:600px){.ai-cost-table>div{grid-template-columns:1fr;gap:2px}}
+
+.add-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:960px}
+.add-card{display:grid;grid-template-columns:58px 1fr 28px;align-items:center;gap:14px;text-decoration:none;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);transition:.18s transform,.18s box-shadow,.18s border-color}
+.add-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}
+.add-icon{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;background:var(--bg);font-size:28px}
+.add-card h2{margin:0 0 4px;font-size:18px}.add-card p{margin:0;color:var(--muted);line-height:1.4}.add-arrow{font-size:30px;color:var(--muted);text-align:right}
+.soon-badge{display:inline-block;margin-top:7px;padding:4px 8px;border-radius:999px;background:var(--bg);color:var(--muted);font-size:11px;font-weight:750}
+.soft-rule{border:0;border-top:1px solid var(--border);margin:28px 0 18px}
+.edit-management h2{font-size:18px;margin-bottom:10px}.manage-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage-card{display:grid;grid-template-columns:38px 1fr 18px;gap:10px;align-items:center;padding:13px;border:1px solid var(--border);border-radius:15px;text-decoration:none;background:var(--bg)}
+.manage-card>span{font-size:24px}.manage-card small{display:block;color:var(--muted);font-weight:400;margin-top:2px}.manage-card i{font-style:normal;font-size:22px;color:var(--muted)}
+.danger-manage{color:var(--danger)}
+@media(max-width:700px){.add-grid{grid-template-columns:1fr}.add-card{grid-template-columns:52px 1fr 22px;padding:15px}.manage-actions{grid-template-columns:1fr}}

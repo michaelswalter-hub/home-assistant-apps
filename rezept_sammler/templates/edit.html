@@ -103,4 +103,20 @@ function installDrag(row){
 document.querySelectorAll('#steps-list .edit-step').forEach(installDrag);
 renumberSteps();
 </script>
+
+{% if recipe %}
+<hr class="soft-rule">
+<section class="edit-management">
+  <h2>Rezept verwalten</h2>
+  <div class="manage-actions">
+    <a class="manage-card" href="?view=ai_image&id={{recipe.id}}">
+      <span>✨</span><div><b>KI-Bild erzeugen</b><small>Ein weiteres Bild zur Galerie hinzufügen.</small></div><i>›</i>
+    </a>
+    <a class="manage-card danger-manage" href="?view=delete&id={{recipe.id}}">
+      <span>🗑</span><div><b>Rezept löschen</b><small>Rezept und zugehörige Daten entfernen.</small></div><i>›</i>
+    </a>
+  </div>
+</section>
+{% endif %}
+
 {% endblock %}

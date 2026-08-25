@@ -1,6 +1,6 @@
 name: "Meine Rezepte"
 description: "Private Rezeptverwaltung mit Kochmodus, Wochenplan und Kochbüchern"
-version: "0.4.5"
+version: "0.4.6"
 slug: "rezept_sammler"
 init: false
 arch:
