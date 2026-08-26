@@ -5,3 +5,4 @@ pypdf==6.0.0
 
 beautifulsoup4==4.13.4
 mobi==0.3.3
+standard-imghdr==3.13.0

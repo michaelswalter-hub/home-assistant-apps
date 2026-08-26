@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.5
+
+- `ModuleNotFoundError: No module named imghdr` unter Python 3.13 behoben
+- Kompatibilitätsmodul `standard-imghdr` ergänzt
+- alle Änderungen aus 0.9.2 bis 0.9.4 zusammengeführt beibehalten
+
 ## 0.9.4
 
 - Waitress-Startparameter vereinfacht, damit das Add-on wieder startet

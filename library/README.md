@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.9.4
+## Version 0.9.5
 
 Die erste Version unterstützt:
 
@@ -234,3 +234,12 @@ Die KI verwendet die OpenAI Responses API mit Websuche. Bibliografische Fakten s
 - behebt den Startabbruch mit angezeigter Waitress-Hilfeseite
 - Datenbank-Migrationsfix aus 0.9.3 bleibt enthalten
 - Mehrfach-Cover-Verwaltung aus 0.9.2 bleibt vollständig enthalten
+
+
+## Wichtig in 0.9.5
+
+- Python-3.13-Kompatibilität für die MOBI-Unterstützung ergänzt
+- fehlendes `imghdr` wird über `standard-imghdr` bereitgestellt
+- Startfix aus 0.9.4 bleibt enthalten
+- Datenbank-Migrationsfix aus 0.9.3 bleibt enthalten
+- Mehrfach-Cover-Verwaltung aus 0.9.2 bleibt enthalten
