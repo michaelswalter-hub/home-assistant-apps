@@ -409,3 +409,18 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 /* 0.5.28 – Zutaten im Kochmodus vor dem Arbeitsschritt */
 .step-ingredients-before{margin-top:10px;margin-bottom:12px;padding-top:10px;padding-bottom:10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .cook-step-instruction{margin-top:0}
+
+/* 0.5.29 – nicht zugeordnete Zutaten im Kochmodus */
+.cook-unassigned-ingredients{margin:12px 0 18px;padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--card)}
+.cook-unassigned-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+.cook-unassigned-head small{font-weight:800;color:var(--muted);letter-spacing:.06em}
+.cook-unassigned-head span{font-size:12px;color:var(--muted)}
+
+/* 0.5.30 – Kochbuch-Auswahl beim Bearbeiten */
+.cookbook-picker{display:flex;flex-wrap:wrap;gap:9px;margin:7px 0 18px}
+.book-choice{display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--border);border-radius:11px;background:var(--card);cursor:pointer}
+.book-choice input{position:absolute;opacity:0;pointer-events:none}
+.book-checkmark{width:18px;height:18px;flex:0 0 18px;border:2px solid var(--border);border-radius:5px;background:var(--bg);position:relative}
+.book-choice input:checked + .book-checkmark{background:var(--accent);border-color:var(--accent)}
+.book-choice input:checked + .book-checkmark:after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:900}
+.book-choice-name{line-height:1.2}

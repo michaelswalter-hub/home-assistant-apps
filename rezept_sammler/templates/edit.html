@@ -52,7 +52,8 @@
 {% for b in cookbooks %}
 <label class="book-choice">
 <input type="checkbox" name="cookbooks" value="{{b.id}}" {% if b.id in selected_cookbooks %}checked{% endif %}>
-<span>📚 {{b.name}}</span>
+<span class="book-checkmark" aria-hidden="true"></span>
+<span class="book-choice-name">📚 {{b.name}}</span>
 </label>
 {% else %}
 <p>Noch keine Kochbücher. <a href="?view=book_new">Jetzt erstellen</a>.</p>
