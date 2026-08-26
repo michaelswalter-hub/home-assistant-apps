@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<section class="panel form-card">
+  <p class="eyebrow">KOCHMODUS</p>
+  <h1>👨‍🍳 Kochmodus konnte nicht geöffnet werden</h1>
+  <div class="notice error">{{error}}</div>
+  <div class="form-actions">
+    <a class="primary" href="?view=recipe&id={{recipe_id}}">← Zurück zum Rezept</a>
+  </div>
+</section>
+{% endblock %}

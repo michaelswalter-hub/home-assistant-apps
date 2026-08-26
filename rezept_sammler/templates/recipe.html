@@ -5,9 +5,8 @@
     <h1>{{recipe.title}}</h1>
 
     <div class="recipe-actionbar">
-      <a class="action-mini" href="?view=cook&id={{recipe.id}}"><span>👨‍🍳</span><b>Kochmodus</b></a>
+      <a class="action-mini" href="?view=cook&id={{recipe.id}}{% if selected_variant %}&variant={{selected_variant.id}}{% endif %}"><span>👨‍🍳</span><b>Kochmodus</b></a>
       <a class="action-mini" href="?view=edit&id={{recipe.id}}"><span>✏️</span><b>Bearbeiten</b></a>
-      <a class="action-mini bring-mini" href="?view=bring&id={{recipe.id}}"><span>🛒</span><b>Bring</b></a>
       <a class="action-mini ai-variant-mini" href="?view=variant_new&id={{recipe.id}}"><span>✨</span><b>KI anpassen</b></a>
     </div>
 
@@ -22,7 +21,9 @@
         <span class="variant-entry">
           <a class="variant-pill {% if selected_variant and selected_variant.id==v.id %}active{% endif %}"
              href="?view=recipe&id={{recipe.id}}&variant={{v.id}}">{{v.name}}</a>
+          {% if selected_variant and selected_variant.id==v.id %}
           <a class="variant-delete-mini" href="?view=variant_delete&id={{recipe.id}}&variant={{v.id}}" aria-label="Variante {{v.name}} löschen" title="Variante löschen">×</a>
+          {% endif %}
         </span>
         {% endfor %}
       </div>
@@ -120,7 +121,10 @@
 
 <div class="cols">
   <section class="card pad ingredients-card">
-    <h2>🥕 Zutaten</h2>
+    <div class="ingredients-head">
+      <h2>🥕 Zutaten</h2>
+      <a class="ingredients-bring-button" href="?view=bring&id={{recipe.id}}">🛒 Bring</a>
+    </div>
     <div class="ingredient-groups">
       {% for group in ingredient_sections %}
       <section class="ingredient-group">

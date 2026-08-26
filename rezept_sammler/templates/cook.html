@@ -2,8 +2,9 @@
 <section class="card pad cook-head">
 {% if recipe.image %}<img class="cook-hero" src="images/{{recipe.image}}" alt="">{% endif %}
 <h1>👨‍🍳 {{recipe.title}}</h1>
-{% if recipe.total_minutes %}<p class="subtle">⏱️ {{human_minutes(recipe.total_minutes)}}</p>{% endif %}
-<a href="?view=recipe&id={{recipe.id}}">← Zurück</a>
+{% if selected_variant %}<p class="cook-variant-badge">Variante: {{selected_variant.name}}</p>{% endif %}
+{% if display_total %}<p class="subtle">⏱️ {{human_minutes(display_total)}}</p>{% endif %}
+<a href="?view=recipe&id={{recipe.id}}{% if selected_variant %}&variant={{selected_variant.id}}{% endif %}">← Zurück</a>
 </section>
 
 <div class="cook-step-list">

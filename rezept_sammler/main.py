@@ -2057,23 +2057,72 @@ def detect_seconds(text):
 
 def cook_mode():
     rid=request.args.get("id",type=int)
-    con=db()
-    r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
-    con.close()
-    if not r:
-        return redirect("./")
+    variant_id=request.args.get("variant",type=int)
+    con=None
 
-    raw_steps=[s.strip() for s in (r["steps"] or "").splitlines() if s.strip()]
-    steps=[]
-    for idx,text in enumerate(raw_steps,1):
-        steps.append({
-            "number":idx,
-            "text":text,
-            "seconds":detect_seconds(text),
-            "ingredient_groups":ingredients_for_step(text,r["ingredients"] or "")
-        })
+    try:
+        if not rid:
+            raise ValueError("Rezept-ID fehlt.")
 
-    return render_template("cook.html",recipe=r,steps=steps)
+        con=db()
+        recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+        if not recipe:
+            raise ValueError("Rezept wurde nicht gefunden.")
+
+        selected_variant=None
+        if variant_id:
+            selected_variant=con.execute(
+                "SELECT * FROM recipe_variants WHERE id=? AND recipe_id=?",(variant_id,rid)
+            ).fetchone()
+
+        ingredient_text=(
+            selected_variant["ingredients"] if selected_variant
+            else recipe["ingredients"]
+        ) or ""
+        step_text=(
+            selected_variant["steps"] if selected_variant
+            else recipe["steps"]
+        ) or ""
+        display_total=(
+            selected_variant["total_minutes"] if selected_variant
+            else recipe["total_minutes"]
+        ) or 0
+
+        raw_steps=[x.strip() for x in str(step_text).splitlines() if x.strip()]
+        steps=[]
+        for idx,text in enumerate(raw_steps,1):
+            try:
+                groups=ingredients_for_step(text,ingredient_text)
+            except Exception:
+                groups=[]
+            steps.append({
+                "number":idx,
+                "text":text,
+                "seconds":detect_seconds(text),
+                "ingredient_groups":groups
+            })
+
+        con.close()
+        con=None
+        return render_template(
+            "cook.html",
+            recipe=recipe,
+            steps=steps,
+            selected_variant=selected_variant,
+            display_total=display_total
+        )
+
+    except Exception as exc:
+        if con is not None:
+            try:
+                con.close()
+            except Exception:
+                pass
+        return render_template(
+            "cook_error.html",
+            recipe_id=rid or 0,
+            error=str(exc)
+        ), 200
 
 
 app.run(host="0.0.0.0",port=8099,debug=False)

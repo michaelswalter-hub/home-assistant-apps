@@ -399,3 +399,9 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .variant-delete-mini{width:24px;height:24px;display:grid;place-items:center;text-decoration:none;border-radius:50%;border:1px solid var(--border);color:var(--danger);background:var(--card);font-size:17px;line-height:1}
 .variant-reason{font-size:12px;color:var(--muted);margin:10px 0 0}
 .danger-button{background:var(--danger)!important;color:#fff!important;border-color:var(--danger)!important}
+
+/* 0.5.26 – Bring bei Zutaten / Kochmodus-Variante */
+.ingredients-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.ingredients-head h2{margin:0}
+.ingredients-bring-button{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);text-decoration:none;font-size:13px;font-weight:750;white-space:nowrap}
+.cook-variant-badge{display:inline-flex;margin:0 0 8px;padding:6px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-weight:750;color:var(--accent)}
