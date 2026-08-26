@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.3
+
+- Startfehler `no such column: series_id` bei alten Datenbanken dauerhaft behoben
+- fehlende Spalten werden vor allen Indizes und Relationstabellen migriert
+- Migration gegen eine alte 0.1.x-Datenbank getestet
+- kompletter Funktionsstand aus 0.9.2 einschließlich Mehrfach-Cover-Verwaltung enthalten
+
+## 0.9.2
+
+- mehrere Cover pro Buch verwaltbar
+- Cover-Galerie in der Buchbearbeitung
+- Hauptcover per Klick auswählbar
+- einzelne Cover löschbar
+- aktive Cover-Auswahl wird sofort aktualisiert
+- verbleibendes Cover wird beim Löschen des Hauptcovers automatisch gewählt
+
 ## 0.9.1
 
 - obere Bedienleiste neu angeordnet

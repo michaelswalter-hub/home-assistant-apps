@@ -371,7 +371,7 @@ function seriesOptions(selected) {
 async function showBook(id) {
   const response = await fetch(api(`books/${id}`));
   const book = await response.json();
-  const cover = api(`books/${book.id}/cover`);
+  const cover = `${api(`books/${book.id}/cover`)}?v=${encodeURIComponent(book.updated_at || "")}`;
   detailContent.innerHTML = `
     <div class="detail">
       <img class="detail-cover" src="${cover}" alt="Cover von ${esc(book.title)}"
@@ -487,13 +487,126 @@ async function showBook(id) {
   });
 }
 
+
+async function loadCoverGallery(book) {
+  const gallery = document.getElementById("coverGallery");
+  if (!gallery) return;
+
+  try {
+    const response = await fetch(api(`books/${book.id}/covers`));
+    if (!response.ok) throw new Error("Cover konnten nicht geladen werden.");
+    const covers = await response.json();
+
+    if (!Array.isArray(covers) || !covers.length) {
+      gallery.innerHTML = "<p>Für dieses Buch ist noch kein Cover gespeichert.</p>";
+      return;
+    }
+
+    gallery.innerHTML = "";
+
+    for (const cover of covers) {
+      const card = document.createElement("div");
+      card.className = `cover-choice${cover.active ? " active" : ""}`;
+      card.innerHTML = `
+        <button type="button" class="cover-select" title="Als Hauptcover verwenden">
+          <img src="${cover.url}?v=${Date.now()}" alt="Gespeichertes Cover">
+          ${cover.active ? `<span class="cover-active-badge">Aktiv</span>` : ""}
+        </button>
+        <button type="button" class="cover-delete" title="Cover löschen">Löschen</button>
+      `;
+
+      card.querySelector(".cover-select").addEventListener("click", async () => {
+        if (cover.active) return;
+
+        const response = await fetch(
+          api(`books/${book.id}/covers/${encodeURIComponent(cover.id)}/active`),
+          {method: "PATCH"}
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          alert(result.error || "Cover konnte nicht ausgewählt werden.");
+          return;
+        }
+
+        const bookIndex = books.findIndex(item => item.id === book.id);
+        if (bookIndex >= 0) books[bookIndex] = result;
+
+        book.updated_at = result.updated_at;
+        book.has_cover = result.has_cover;
+        await loadCoverGallery(book);
+
+        const preview = document.querySelector("#detailContent .detail-cover");
+        if (preview) {
+          preview.style.visibility = "visible";
+          preview.src = `${api(`books/${book.id}/cover`)}?v=${encodeURIComponent(result.updated_at || Date.now())}`;
+        }
+      });
+
+      card.querySelector(".cover-delete").addEventListener("click", async event => {
+        event.stopPropagation();
+
+        const confirmed = confirm(
+          cover.active
+            ? "Dieses Cover ist aktuell ausgewählt. Wirklich löschen? Falls weitere Cover vorhanden sind, wird eines davon automatisch gewählt."
+            : "Dieses Cover wirklich löschen?"
+        );
+        if (!confirmed) return;
+
+        const response = await fetch(
+          api(`books/${book.id}/covers/${encodeURIComponent(cover.id)}`),
+          {method: "DELETE"}
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          alert(result.error || "Cover konnte nicht gelöscht werden.");
+          return;
+        }
+
+        const bookIndex = books.findIndex(item => item.id === book.id);
+        if (bookIndex >= 0) books[bookIndex] = result;
+
+        book.updated_at = result.updated_at;
+        book.has_cover = result.has_cover;
+        await loadCoverGallery(book);
+
+        const preview = document.querySelector("#detailContent .detail-cover");
+        if (preview) {
+          if (result.has_cover) {
+            preview.style.visibility = "visible";
+            preview.src = `${api(`books/${book.id}/cover`)}?v=${encodeURIComponent(result.updated_at || Date.now())}`;
+          } else {
+            preview.style.visibility = "hidden";
+          }
+        }
+      });
+
+      gallery.appendChild(card);
+    }
+  } catch (error) {
+    gallery.innerHTML = `<p>${esc(error.message)}</p>`;
+  }
+}
+
 function showEditBook(book) {
   detailContent.innerHTML = `
     <div class="detail">
-      <img class="detail-cover" src="${api(`books/${book.id}/cover`)}" alt="Cover von ${esc(book.title)}"
-           onerror="this.style.visibility='hidden'">
+      <div>
+        <img class="detail-cover" src="${api(`books/${book.id}/cover`)}?v=${encodeURIComponent(book.updated_at || "")}" alt="Cover von ${esc(book.title)}"
+             onerror="this.style.visibility='hidden'">
+      </div>
       <div>
         <h2>Buch bearbeiten</h2>
+
+        <section class="cover-manager">
+          <div class="cover-manager-head">
+            <h3>Cover auswählen</h3>
+            <span class="settings-help">Antippen = als Hauptcover verwenden</span>
+          </div>
+          <div id="coverGallery" class="cover-gallery">
+            <p>Cover werden geladen …</p>
+          </div>
+        </section>
+
         <form id="editBookForm" class="edit-form">
           <label>Titel
             <input name="title" required value="${esc(book.title || "")}">
@@ -568,6 +681,7 @@ function showEditBook(book) {
     </div>
   `;
 
+  loadCoverGallery(book);
   document.getElementById("cancelEdit").addEventListener("click", () => showBook(book.id));
   document.getElementById("editBookForm").addEventListener("submit", async event => {
     event.preventDefault();

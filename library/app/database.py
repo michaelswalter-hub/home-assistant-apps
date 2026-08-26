@@ -73,8 +73,36 @@ class Database:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
-            conn.executescript(SCHEMA)
+            # Important for upgrades from very old library versions:
+            # create the base books table first, then add missing columns,
+            # and only afterwards create indexes / relation tables.
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS books (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    author TEXT,
+                    description TEXT,
+                    isbn TEXT,
+                    publisher TEXT,
+                    published_date TEXT,
+                    language TEXT,
+                    format TEXT NOT NULL,
+                    file_name TEXT NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    storage_path TEXT NOT NULL,
+                    cover_path TEXT,
+                    sha256 TEXT NOT NULL UNIQUE,
+                    metadata_source TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.commit()
             self._migrate(conn)
+            conn.executescript(SCHEMA)
 
     def connect(self):
         conn = sqlite3.connect(self.path)

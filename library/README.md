@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.9.1
+## Version 0.9.3
 
 Die erste Version unterstützt:
 
@@ -207,3 +207,22 @@ Die KI verwendet die OpenAI Responses API mit Websuche. Bibliografische Fakten s
 - Sternefilter und Alle/Hase/HoBi bleiben stabil nebeneinander
 - Einstellungen-Zahnrad ganz rechts in der Filterleiste
 - responsive Anordnung verhindert unnötiges Umbruchverhalten bei vielen Büchern
+
+
+## Neu in 0.9.2
+
+- mehrere Cover pro Buch werden beibehalten
+- neue Online-Cover ersetzen vorhandene Dateien nicht
+- Cover-Galerie in „Buch bearbeiten“
+- horizontal durch gespeicherte Cover scrollen
+- beliebiges Cover als Hauptcover auswählen
+- einzelne Cover löschen
+- beim Löschen des aktiven Covers wird automatisch ein anderes vorhandenes Cover gewählt
+
+
+## Wichtig in 0.9.3
+
+- Start-/Migrationsfehler `no such column: series_id` dauerhaft behoben
+- Migration läuft jetzt immer vor dem Anlegen von Indizes
+- bestehende Bibliotheken aus älteren Versionen werden weiterverwendet
+- alle Funktionen aus 0.9.2 sind enthalten, insbesondere die Mehrfach-Cover-Verwaltung

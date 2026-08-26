@@ -59,6 +59,38 @@ def hash_file(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 
+
+def _book_covers(book: dict) -> list[dict]:
+    book_dir = Path(book["storage_path"]).parent
+    active_path = Path(book["cover_path"]).resolve() if book.get("cover_path") else None
+    covers = []
+
+    if not book_dir.exists():
+        return covers
+
+    allowed_suffixes = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    for path in sorted(book_dir.iterdir(), key=lambda item: item.stat().st_mtime if item.exists() else 0):
+        if not path.is_file():
+            continue
+        if not path.name.lower().startswith("cover"):
+            continue
+        if path.suffix.lower() not in allowed_suffixes:
+            continue
+
+        try:
+            resolved = path.resolve()
+            is_active = active_path is not None and resolved == active_path
+        except Exception:
+            is_active = False
+
+        covers.append({
+            "id": path.name,
+            "active": is_active,
+            "size": path.stat().st_size,
+        })
+
+    return covers
+
 def public_book(book: dict) -> dict:
     return {
         "id": book["id"],
@@ -83,6 +115,7 @@ def public_book(book: dict) -> dict:
         "created_at": book["created_at"],
         "updated_at": book["updated_at"],
         "has_cover": bool(book.get("cover_path") and Path(book["cover_path"]).exists()),
+        "cover_count": len(_book_covers(book)),
     }
 
 @app.errorhandler(413)
@@ -95,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.1"})
+    return jsonify({"status": "ok", "version": "0.9.3"})
 
 @app.get("/api/books")
 def list_books():
@@ -447,6 +480,90 @@ def refresh_metadata(book_id: str):
         "isbn_found": bool(updated.get("isbn")),
     }
     return jsonify(payload)
+
+
+@app.get("/api/books/<book_id>/covers")
+def list_book_covers(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    result = []
+    for cover in _book_covers(book):
+        item = dict(cover)
+        item["url"] = f"api/books/{book_id}/covers/{cover['id']}"
+        result.append(item)
+    return jsonify(result)
+
+@app.get("/api/books/<book_id>/covers/<cover_id>")
+def get_book_cover_file(book_id: str, cover_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    book_dir = Path(book["storage_path"]).parent.resolve()
+    target = (book_dir / Path(cover_id).name).resolve()
+
+    if target.parent != book_dir or not target.exists() or not target.is_file():
+        return jsonify({"error": "Cover nicht gefunden."}), 404
+    if not target.name.lower().startswith("cover"):
+        return jsonify({"error": "Ungültige Cover-Datei."}), 400
+
+    return send_file(target, conditional=True)
+
+@app.patch("/api/books/<book_id>/covers/<cover_id>/active")
+def set_active_cover(book_id: str, cover_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    book_dir = Path(book["storage_path"]).parent.resolve()
+    target = (book_dir / Path(cover_id).name).resolve()
+
+    if target.parent != book_dir or not target.exists() or not target.is_file():
+        return jsonify({"error": "Cover nicht gefunden."}), 404
+    if not target.name.lower().startswith("cover"):
+        return jsonify({"error": "Ungültige Cover-Datei."}), 400
+
+    db.update_book(book_id, {
+        "cover_path": str(target),
+        "updated_at": utcnow(),
+    })
+    return jsonify(public_book(db.get_book(book_id)))
+
+@app.delete("/api/books/<book_id>/covers/<cover_id>")
+def delete_book_cover(book_id: str, cover_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    book_dir = Path(book["storage_path"]).parent.resolve()
+    target = (book_dir / Path(cover_id).name).resolve()
+
+    if target.parent != book_dir or not target.exists() or not target.is_file():
+        return jsonify({"error": "Cover nicht gefunden."}), 404
+    if not target.name.lower().startswith("cover"):
+        return jsonify({"error": "Ungültige Cover-Datei."}), 400
+
+    active = Path(book["cover_path"]).resolve() if book.get("cover_path") else None
+    deleting_active = active is not None and target == active
+
+    try:
+        target.unlink()
+    except Exception as exc:
+        return jsonify({"error": f"Cover konnte nicht gelöscht werden: {exc}"}), 500
+
+    values = {"updated_at": utcnow()}
+    if deleting_active:
+        remaining = _book_covers({**book, "cover_path": None})
+        if remaining:
+            next_cover = (book_dir / remaining[0]["id"]).resolve()
+            values["cover_path"] = str(next_cover)
+        else:
+            values["cover_path"] = None
+
+    db.update_book(book_id, values)
+    return jsonify(public_book(db.get_book(book_id)))
 
 @app.get("/api/books/<book_id>/cover")
 def get_cover(book_id: str):
