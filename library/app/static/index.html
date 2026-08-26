@@ -13,25 +13,28 @@
       <h1>Meine Bibliothek</h1>
     </div>
     <div class="header-actions">
-      <button id="settingsButton" class="icon-button settings-button" aria-label="Einstellungen" title="Einstellungen">⚙</button>
       <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
     </div>
-    <input id="fileInput" type="file" accept=".epub,.pdf,application/epub+zip,application/pdf" multiple hidden>
+    <input id="fileInput" type="file" accept=".epub,.pdf,.mobi,application/epub+zip,application/pdf,application/x-mobipocket-ebook" multiple hidden>
   </header>
 
   <main>
-    <section class="toolbar">
-      <div class="view-switch" role="group" aria-label="Ansicht wählen">
-        <button id="booksViewButton" class="view-button active" type="button">Bücher</button>
-        <button id="seriesViewButton" class="view-button" type="button">Serien</button>
+    <section class="toolbar compact-toolbar">
+      <div class="toolbar-left">
+        <div class="view-switch" role="group" aria-label="Ansicht wählen">
+          <button id="booksViewButton" class="view-button active" type="button">Bücher</button>
+          <button id="seriesViewButton" class="view-button" type="button">Serien</button>
+        </div>
+
+        <div id="bookCount" class="count toolbar-count"></div>
       </div>
 
-      <label class="search">
+      <label class="search toolbar-search">
         <span>⌕</span>
         <input id="searchInput" type="search" placeholder="Titel, Autor, Serie oder Genre suchen …">
       </label>
 
-      <div class="toolbar-actions">
+      <div class="toolbar-filters">
         <div id="ratingFilter" class="rating-filter" aria-label="Nach Bewertung filtern" title="Bewertung filtern">
           <span class="rating-filter-label">Bewertung</span>
           <button type="button" class="rating-filter-star" data-rating="1" aria-label="1 Stern">★</button>
@@ -40,12 +43,14 @@
           <button type="button" class="rating-filter-star" data-rating="4" aria-label="4 Sterne">★</button>
           <button type="button" class="rating-filter-star" data-rating="5" aria-label="5 Sterne">★</button>
         </div>
+
         <div id="personFilter" class="person-filter" aria-label="Nach Person filtern">
           <button type="button" class="person-filter-button active" data-person="">Alle</button>
           <button type="button" class="person-filter-button" data-person="Hase">Hase</button>
           <button type="button" class="person-filter-button" data-person="HoBi">HoBi</button>
         </div>
-        <div id="bookCount" class="count"></div>
+
+        <button id="settingsButton" class="icon-button settings-button toolbar-settings" aria-label="Einstellungen" title="Einstellungen">⚙</button>
       </div>
     </section>
 
@@ -53,7 +58,7 @@
     <section id="emptyState" class="empty hidden">
       <div class="empty-icon">▤</div>
       <h2>Noch keine Bücher</h2>
-      <p>Lade eine EPUB- oder PDF-Datei hoch. Metadaten und Cover werden soweit möglich automatisch ergänzt.</p>
+      <p>Lade eine EPUB-, PDF- oder MOBI-Datei hoch. Metadaten und Cover werden soweit möglich automatisch ergänzt.</p>
       <button id="emptyUploadButton" class="primary">Erstes Buch hinzufügen</button>
     </section>
 
@@ -166,6 +171,22 @@
       <p class="settings-help">Wähle den richtigen Treffer. Die ausgewählte Ausgabe kann ISBN, Verlag, Erscheinungsdatum, Cover und Zusammenfassung übernehmen.</p>
       <div id="metadataCandidates" class="metadata-candidates"></div>
     </div>
+  </dialog>
+
+
+  <dialog id="readerDialog" class="reader-dialog">
+    <div class="reader-toolbar">
+      <div>
+        <p class="eyebrow">READER</p>
+        <h2 id="readerTitle">Buch lesen</h2>
+      </div>
+      <div class="reader-controls">
+        <button id="readerFontDown" type="button" class="secondary" title="Schrift kleiner">A−</button>
+        <button id="readerFontUp" type="button" class="secondary" title="Schrift größer">A+</button>
+        <button id="closeReader" type="button" class="icon-button" aria-label="Reader schließen">×</button>
+      </div>
+    </div>
+    <div id="readerContent" class="reader-content"></div>
   </dialog>
 
   <script src="static/app.js"></script>

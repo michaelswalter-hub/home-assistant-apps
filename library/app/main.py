@@ -5,11 +5,15 @@ import json
 import os
 import re
 import shutil
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
+from bs4 import BeautifulSoup
+import mobi
 
 from database import Database
 from ai_metadata import search_book_with_ai
@@ -26,7 +30,7 @@ app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 db = Database(DATA_DIR / "library.db")
 
-ALLOWED_EXTENSIONS = {".epub", ".pdf"}
+ALLOWED_EXTENSIONS = {".epub", ".pdf", ".mobi"}
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -91,7 +95,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.8.2"})
+    return jsonify({"status": "ok", "version": "0.9.1"})
 
 @app.get("/api/books")
 def list_books():
@@ -114,7 +118,7 @@ def upload_book():
     original_name = clean_filename(uploaded.filename)
     suffix = Path(original_name).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
-        return jsonify({"error": "Unterstützt werden nur EPUB- und PDF-Dateien."}), 400
+        return jsonify({"error": "Unterstützt werden nur EPUB-, PDF- und MOBI-Dateien."}), 400
 
     book_id = uuid4().hex
     book_dir = BOOKS_DIR / book_id
@@ -454,6 +458,108 @@ def get_cover(book_id: str):
         return "", 404
     return send_file(cover_path, conditional=True)
 
+
+def _safe_html_to_text(raw: bytes | str) -> str:
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="ignore")
+    soup = BeautifulSoup(raw, "html.parser")
+    for tag in soup(["script", "style", "noscript", "svg"]):
+        tag.decompose()
+
+    blocks = []
+    for node in soup.find_all(["h1", "h2", "h3", "h4", "p", "blockquote", "li"]):
+        text = " ".join(node.stripped_strings)
+        if text:
+            if node.name in {"h1", "h2", "h3", "h4"}:
+                blocks.append(f"\n{text}\n")
+            elif node.name == "li":
+                blocks.append(f"• {text}")
+            else:
+                blocks.append(text)
+    if blocks:
+        return "\n\n".join(blocks)
+
+    return soup.get_text("\n\n", strip=True)
+
+def _epub_reader_text(path: Path) -> str:
+    chunks = []
+    with zipfile.ZipFile(path) as archive:
+        try:
+            container = ET.fromstring(archive.read("META-INF/container.xml"))
+            rootfile = next(
+                (
+                    node.attrib.get("full-path")
+                    for node in container.iter()
+                    if node.tag.rsplit("}", 1)[-1] == "rootfile"
+                ),
+                None,
+            )
+        except Exception:
+            rootfile = None
+
+        ordered_files = []
+        if rootfile:
+            try:
+                opf = ET.fromstring(archive.read(rootfile))
+                manifest = {}
+                spine = []
+                for node in opf.iter():
+                    local = node.tag.rsplit("}", 1)[-1]
+                    if local == "item":
+                        item_id = node.attrib.get("id")
+                        href = node.attrib.get("href")
+                        media = node.attrib.get("media-type", "")
+                        if item_id and href and ("html" in media or "xhtml" in media):
+                            manifest[item_id] = href
+                    elif local == "itemref":
+                        idref = node.attrib.get("idref")
+                        if idref:
+                            spine.append(idref)
+                base = Path(rootfile).parent
+                ordered_files = [
+                    (base / manifest[idref]).as_posix()
+                    for idref in spine
+                    if idref in manifest
+                ]
+            except Exception:
+                ordered_files = []
+
+        if not ordered_files:
+            ordered_files = [
+                name for name in archive.namelist()
+                if name.lower().endswith((".xhtml", ".html", ".htm"))
+            ]
+
+        total_chars = 0
+        for member in ordered_files:
+            try:
+                text = _safe_html_to_text(archive.read(member))
+            except Exception:
+                continue
+            if not text:
+                continue
+            chunks.append(text)
+            total_chars += len(text)
+            # Safety ceiling for very large books / malformed archives.
+            if total_chars >= 5_000_000:
+                break
+
+    return "\n\n".join(chunks)
+
+def _mobi_reader_text(path: Path) -> str:
+    tempdir = None
+    try:
+        tempdir, extracted = mobi.extract(str(path))
+        extracted_path = Path(extracted)
+        if extracted_path.suffix.lower() == ".epub":
+            return _epub_reader_text(extracted_path)
+        if extracted_path.exists():
+            return _safe_html_to_text(extracted_path.read_bytes())
+        return ""
+    finally:
+        if tempdir:
+            shutil.rmtree(tempdir, ignore_errors=True)
+
 def _book_file(book_id: str):
     book = db.get_book(book_id)
     if not book:
@@ -463,13 +569,72 @@ def _book_file(book_id: str):
         return None, (jsonify({"error": "Buchdatei fehlt."}), 404)
     return (book, path), None
 
+
+@app.get("/api/books/<book_id>/reader-content")
+def reader_content(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    path = Path(book["storage_path"])
+    if not path.exists():
+        return jsonify({"error": "Buchdatei fehlt."}), 404
+
+    fmt = str(book.get("format") or "").upper()
+    if fmt == "PDF":
+        return jsonify({
+            "format": "PDF",
+            "title": book.get("title"),
+            "url": f"api/books/{book_id}/open",
+        })
+
+    try:
+        if fmt == "EPUB":
+            text = _epub_reader_text(path)
+        elif fmt == "MOBI":
+            text = _mobi_reader_text(path)
+        else:
+            return jsonify({"error": "Dieses Format kann nicht im Reader geöffnet werden."}), 400
+    except Exception as exc:
+        app.logger.exception("Reader konnte Buch nicht aufbereiten")
+        return jsonify({"error": f"Reader konnte das Buch nicht öffnen: {exc}"}), 500
+
+    if not text.strip():
+        return jsonify({"error": "Aus diesem Buch konnte kein lesbarer Text extrahiert werden."}), 422
+
+    return jsonify({
+        "format": fmt,
+        "title": book.get("title"),
+        "author": book.get("author"),
+        "content": text,
+    })
+
+@app.delete("/api/books/<book_id>")
+def delete_book(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    book_dir = Path(book["storage_path"]).parent
+    db.delete_book(book_id)
+    try:
+        shutil.rmtree(book_dir, ignore_errors=True)
+    except Exception:
+        app.logger.exception("Buchverzeichnis konnte nicht vollständig gelöscht werden")
+
+    return "", 204
+
 @app.get("/api/books/<book_id>/download")
 def download_book(book_id: str):
     result, error = _book_file(book_id)
     if error:
         return error
     book, path = result
-    mimetype = "application/pdf" if book["format"] == "PDF" else "application/epub+zip"
+    mimetype = {
+        "PDF": "application/pdf",
+        "EPUB": "application/epub+zip",
+        "MOBI": "application/x-mobipocket-ebook",
+    }.get(book["format"], "application/octet-stream")
     return send_file(
         path,
         mimetype=mimetype,
@@ -485,7 +650,11 @@ def open_book(book_id: str):
     if error:
         return error
     book, path = result
-    mimetype = "application/pdf" if book["format"] == "PDF" else "application/epub+zip"
+    mimetype = {
+        "PDF": "application/pdf",
+        "EPUB": "application/epub+zip",
+        "MOBI": "application/x-mobipocket-ebook",
+    }.get(book["format"], "application/octet-stream")
     response = send_file(
         path,
         mimetype=mimetype,

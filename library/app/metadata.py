@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import mimetypes
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
@@ -12,7 +13,9 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import requests
+import mobi
 from pypdf import PdfReader
+from bs4 import BeautifulSoup
 
 USER_AGENT = "HomeAssistant-Library/0.1 (+private-library-app)"
 TIMEOUT = 12
@@ -220,12 +223,63 @@ def extract_pdf_metadata(path: Path, book_dir: Path) -> dict:
 
     return result
 
+
+def extract_mobi_metadata(path: Path, book_dir: Path) -> dict:
+    result: dict = {}
+    tempdir = None
+    try:
+        tempdir, extracted = mobi.extract(str(path))
+        extracted_path = Path(extracted)
+
+        # Newer MOBI/KF8 files may yield an EPUB, older MOBI files HTML.
+        if extracted_path.suffix.lower() == ".epub":
+            result.update(extract_epub_metadata(extracted_path, book_dir))
+        elif extracted_path.exists():
+            raw = extracted_path.read_bytes()
+            text = raw.decode("utf-8", errors="ignore")
+            soup = BeautifulSoup(text, "html.parser")
+
+            title = soup.title.get_text(" ", strip=True) if soup.title else None
+            if title:
+                result["title"] = _clean_text(title)
+
+            plain = soup.get_text("\n", strip=True)
+            isbn = find_isbn(plain[:100000])
+            if isbn:
+                result["isbn"] = isbn
+
+            # MOBI files often contain useful metadata in meta tags.
+            for node in soup.find_all("meta"):
+                name = str(node.get("name") or node.get("property") or "").casefold()
+                content = _clean_text(node.get("content"))
+                if not content:
+                    continue
+                if "author" in name and not result.get("author"):
+                    result["author"] = content
+                elif ("description" in name or "summary" in name) and not result.get("description"):
+                    result["description"] = content
+                elif "publisher" in name and not result.get("publisher"):
+                    result["publisher"] = content
+                elif "language" in name and not result.get("language"):
+                    result["language"] = content
+    except Exception:
+        pass
+    finally:
+        if tempdir:
+            try:
+                shutil.rmtree(tempdir, ignore_errors=True)
+            except Exception:
+                pass
+    return {k: v for k, v in result.items() if v}
+
 def extract_local_metadata(path: Path, book_dir: Path) -> dict:
     suffix = path.suffix.lower()
     if suffix == ".epub":
         return extract_epub_metadata(path, book_dir)
     if suffix == ".pdf":
         return extract_pdf_metadata(path, book_dir)
+    if suffix == ".mobi":
+        return extract_mobi_metadata(path, book_dir)
     return {}
 
 def _get_json(url: str, params: dict | None = None) -> dict:

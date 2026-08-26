@@ -160,6 +160,12 @@ class Database:
             )
             conn.commit()
 
+    def delete_book(self, book_id: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM book_genres WHERE book_id = ?", (book_id,))
+            conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
+            conn.commit()
+
     def list_series(self) -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute(

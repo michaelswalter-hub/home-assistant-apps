@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.8.2
+## Version 0.9.1
 
 Die erste Version unterstützt:
 
@@ -185,3 +185,25 @@ Die KI verwendet die OpenAI Responses API mit Websuche. Bibliografische Fakten s
 - Personenfilter wirkt auf Bücher- und Serienansicht
 - Serien zeigen bei aktivem Personenfilter nur die zugehörigen Bücher
 - Genre-Suche reagiert erst, wenn ungefähr 70 % des Genre-Namens eingegeben wurden
+
+
+## Neu in 0.9.0
+
+- MOBI-Upload und -Download
+- MOBI-Metadaten werden soweit möglich lokal ausgelesen
+- Bücher können aus der Detailansicht gelöscht werden
+- Löschen entfernt Datenbankeintrag und gespeicherte Buchdateien
+- integrierter Reader für PDF, EPUB und MOBI
+- PDF wird direkt eingebettet angezeigt
+- EPUB und MOBI werden als scrollbarer Lesetext dargestellt
+- Schriftgröße im Textreader veränderbar
+
+
+## Neu in 0.9.1
+
+- kompaktere obere Bedienleiste
+- Anzahl der Bücher/Serien direkt neben Bücher/Serien
+- Bücher/Serien-Umschalter nimmt nur noch benötigte Breite ein
+- Sternefilter und Alle/Hase/HoBi bleiben stabil nebeneinander
+- Einstellungen-Zahnrad ganz rechts in der Filterleiste
+- responsive Anordnung verhindert unnötiges Umbruchverhalten bei vielen Büchern

@@ -21,6 +21,12 @@ const settingsDialog = document.getElementById("settingsDialog");
 const metadataDialog = document.getElementById("metadataDialog");
 const metadataCandidates = document.getElementById("metadataCandidates");
 const closeMetadata = document.getElementById("closeMetadata");
+const readerDialog = document.getElementById("readerDialog");
+const readerTitle = document.getElementById("readerTitle");
+const readerContent = document.getElementById("readerContent");
+const closeReader = document.getElementById("closeReader");
+const readerFontDown = document.getElementById("readerFontDown");
+const readerFontUp = document.getElementById("readerFontUp");
 const closeSettingsDialog = document.getElementById("closeSettingsDialog");
 const seriesForm = document.getElementById("seriesForm");
 const seriesName = document.getElementById("seriesName");
@@ -396,8 +402,10 @@ async function showBook(id) {
           <dt>Metadaten</dt><dd>${esc(book.metadata_source || "–")}</dd>
         </dl>
         <div class="actions">
-          <button class="primary" id="shareBook">Teilen / In Dateien sichern</button>
+          <button class="primary" id="readBook">Lesen</button>
+          <button class="secondary" id="shareBook">Teilen / In Dateien sichern</button>
           <a class="secondary" href="${api(`books/${book.id}/download`)}" target="_blank" rel="noopener">Direkter Download</a>
+          <button class="danger-filled" id="deleteBook">Buch löschen</button>
         </div>
         <p class="share-note">Auf iPhone/iPad öffnet „Teilen / In Dateien sichern“ nach Möglichkeit das iOS-Teilen-Menü.</p>
       </div>
@@ -410,6 +418,23 @@ async function showBook(id) {
 
   document.getElementById("editBook").addEventListener("click", () => showEditBook(book));
 
+  document.getElementById("readBook").addEventListener("click", () => openReader(book));
+
+  document.getElementById("deleteBook").addEventListener("click", async () => {
+    const confirmed = confirm(`„${book.title}“ wirklich löschen? Die gespeicherte Buchdatei wird ebenfalls entfernt.`);
+    if (!confirmed) return;
+
+    const response = await fetch(api(`books/${book.id}`), {method: "DELETE"});
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      alert(result.error || "Buch konnte nicht gelöscht werden.");
+      return;
+    }
+
+    dialog.close();
+    await loadData();
+  });
+
   document.getElementById("shareBook").addEventListener("click", async event => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -418,7 +443,11 @@ async function showBook(id) {
       const fileResponse = await fetch(api(`books/${book.id}/download`));
       if (!fileResponse.ok) throw new Error("Datei konnte nicht geladen werden.");
       const blob = await fileResponse.blob();
-      const mime = book.format === "PDF" ? "application/pdf" : "application/epub+zip";
+      const mime = {
+        PDF: "application/pdf",
+        EPUB: "application/epub+zip",
+        MOBI: "application/x-mobipocket-ebook"
+      }[book.format] || "application/octet-stream";
       const file = new File([blob], book.file_name, {type: mime});
 
       if (navigator.share && (!navigator.canShare || navigator.canShare({files: [file]}))) {
@@ -725,6 +754,45 @@ function renderGenreManager() {
 }
 
 
+
+let readerFontSize = 18;
+
+function applyReaderFontSize() {
+  if (!readerContent || readerContent.classList.contains("pdf-mode")) return;
+  readerContent.style.fontSize = `${readerFontSize}px`;
+}
+
+async function openReader(book) {
+  if (!readerDialog || !readerContent) {
+    alert("Reader ist nicht verfügbar.");
+    return;
+  }
+
+  readerTitle.textContent = book.title || "Buch lesen";
+  readerContent.classList.remove("pdf-mode");
+  readerContent.style.fontSize = "";
+  readerContent.textContent = "Buch wird vorbereitet …";
+  readerDialog.showModal();
+
+  try {
+    const response = await fetch(api(`books/${book.id}/reader-content`));
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Buch konnte nicht geöffnet werden.");
+
+    if (result.format === "PDF") {
+      readerContent.classList.add("pdf-mode");
+      readerContent.innerHTML = `<iframe src="${result.url}" title="${esc(book.title)}"></iframe>`;
+    } else {
+      readerContent.classList.remove("pdf-mode");
+      readerContent.textContent = result.content || "";
+      applyReaderFontSize();
+    }
+  } catch (error) {
+    readerContent.classList.remove("pdf-mode");
+    readerContent.textContent = error.message;
+  }
+}
+
 function amazonSearchUrl(candidate) {
   const query = candidate.isbn || [candidate.title, candidate.author].filter(Boolean).join(" ");
   return `https://www.amazon.de/s?k=${encodeURIComponent(query)}`;
@@ -978,8 +1046,42 @@ dialog.addEventListener("click", event => {
   if (event.target === dialog) dialog.close();
 });
 
+
+if (closeReader && readerDialog) {
+  closeReader.addEventListener("click", () => readerDialog.close());
+}
+if (readerFontDown) {
+  readerFontDown.addEventListener("click", () => {
+    readerFontSize = Math.max(12, readerFontSize - 2);
+    applyReaderFontSize();
+  });
+}
+if (readerFontUp) {
+  readerFontUp.addEventListener("click", () => {
+    readerFontSize = Math.min(34, readerFontSize + 2);
+    applyReaderFontSize();
+  });
+}
+
 if (closeMetadata && metadataDialog) {
-  if (closeMetadata && metadataDialog) {
+  
+if (closeReader && readerDialog) {
+  closeReader.addEventListener("click", () => readerDialog.close());
+}
+if (readerFontDown) {
+  readerFontDown.addEventListener("click", () => {
+    readerFontSize = Math.max(12, readerFontSize - 2);
+    applyReaderFontSize();
+  });
+}
+if (readerFontUp) {
+  readerFontUp.addEventListener("click", () => {
+    readerFontSize = Math.min(34, readerFontSize + 2);
+    applyReaderFontSize();
+  });
+}
+
+if (closeMetadata && metadataDialog) {
   closeMetadata.addEventListener("click", () => metadataDialog.close());
 }
 }

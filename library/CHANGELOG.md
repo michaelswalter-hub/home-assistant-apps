@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.1
+
+- obere Bedienleiste neu angeordnet
+- Anzahl neben Bücher/Serien verschoben
+- Bücher/Serien-Schalter kompakter gemacht
+- Personenfilter stabil neben Sternefilter
+- Zahnrad ganz rechts in die Bedienleiste verschoben
+- responsives Umbruchverhalten verbessert
+
+## 0.9.0
+
+- MOBI-Unterstützung hinzugefügt
+- Buch löschen mit Sicherheitsabfrage
+- Reader für PDF, EPUB und MOBI
+- EPUB/MOBI-Textreader mit Schriftgrößensteuerung
+- PDF-Reader per eingebetteter Datei
+- Datenbank- und Dateilöschung werden gemeinsam durchgeführt
+
 ## 0.8.2
 
 - Seriencover und Büchercover verwenden jetzt exakt dasselbe Raster und dieselbe Größe
