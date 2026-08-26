@@ -447,6 +447,64 @@ def _best_candidate(candidates: list[dict], title: str | None, author: str | Non
     return best
 
 
+
+def _search_title_variants(title: str | None) -> list[str]:
+    if not title:
+        return []
+    variants = [title.strip()]
+
+    # Common EPUB/PDF metadata includes series names, edition notes or subtitles.
+    no_brackets = re.sub(r"\s*[\(\[\{].*?[\)\]\}]\s*", " ", title)
+    no_brackets = re.sub(r"\s+", " ", no_brackets).strip()
+    if no_brackets:
+        variants.append(no_brackets)
+
+    for separator in (":", " – ", " - ", " | "):
+        if separator in title:
+            first = title.split(separator, 1)[0].strip()
+            if len(first) >= 3:
+                variants.append(first)
+
+    # Remove frequent German edition/series suffixes.
+    cleaned = re.sub(
+        r"\b(?:band|bd\.?|teil|folge|volume|vol\.?)\s*\d+\b",
+        " ",
+        title,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -–:")
+    if cleaned:
+        variants.append(cleaned)
+
+    unique = []
+    seen = set()
+    for value in variants:
+        key = value.casefold()
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(value)
+    return unique[:5]
+
+def _search_author_variants(author: str | None) -> list[str]:
+    if not author:
+        return []
+    variants = [author.strip()]
+    # Multiple authors: first author is often enough for catalog search.
+    first = re.split(r"[,;/&]|\bund\b", author, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    if first:
+        variants.append(first)
+    parts = first.split()
+    if len(parts) >= 2:
+        variants.append(parts[-1])
+    unique = []
+    seen = set()
+    for value in variants:
+        key = value.casefold()
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(value)
+    return unique[:3]
+
 def search_metadata_candidates(local: dict, language: str = "de", limit: int = 10) -> list[dict]:
     title = local.get("title")
     author = local.get("author")
@@ -458,17 +516,24 @@ def search_metadata_candidates(local: dict, language: str = "de", limit: int = 1
         candidates.extend(_open_library_candidates(isbn, title, author))
 
     queries = []
-    if title and author:
-        queries.extend([
-            f'intitle:"{title}" inauthor:"{author}"',
-            f"intitle:{title} inauthor:{author}",
-            f"{title} {author}",
-            title,
-        ])
-    elif title:
-        queries.extend([f'intitle:"{title}"', f"intitle:{title}", title])
-    elif author:
-        queries.extend([f'inauthor:"{author}"', f"inauthor:{author}"])
+    title_variants = _search_title_variants(title)
+    author_variants = _search_author_variants(author)
+
+    if title_variants and author_variants:
+        for search_title in title_variants[:4]:
+            for search_author in author_variants[:2]:
+                queries.extend([
+                    f'intitle:"{search_title}" inauthor:"{search_author}"',
+                    f"intitle:{search_title} inauthor:{search_author}",
+                    f"{search_title} {search_author}",
+                ])
+            queries.append(search_title)
+    elif title_variants:
+        for search_title in title_variants:
+            queries.extend([f'intitle:"{search_title}"', f"intitle:{search_title}", search_title])
+    elif author_variants:
+        for search_author in author_variants:
+            queries.extend([f'inauthor:"{search_author}"', f"inauthor:{search_author}"])
 
     seen_queries = set()
     for query in queries:
@@ -477,8 +542,10 @@ def search_metadata_candidates(local: dict, language: str = "de", limit: int = 1
             seen_queries.add(key)
             candidates.extend(_google_books_candidates(query, language))
 
-    candidates.extend(_open_library_candidates(None, title, author))
-    candidates.extend(_open_library_general_candidates(title, author))
+    for search_title in (title_variants or [title])[:4]:
+        for search_author in (author_variants or [author])[:2]:
+            candidates.extend(_open_library_candidates(None, search_title, search_author))
+            candidates.extend(_open_library_general_candidates(search_title, search_author))
 
     ranked = sorted(candidates, key=lambda c: _match_score(c, title, author), reverse=True)
     unique = []

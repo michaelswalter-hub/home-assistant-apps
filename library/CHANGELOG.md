@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- Sternebewertung 0–5 hinzugefügt
+- Bewertung direkt in der Bücherübersicht möglich
+- Sternefilter in der Bücherübersicht
+- Bewertung auch in der Detailansicht änderbar
+- Datenbankmigration für Bewertungen
+- Metadatensuche mit bereinigten Titelvarianten erweitert
+- Suchvarianten für Untertitel, Serienzusätze und Autor-Nachnamen ergänzt
+
 ## 0.6.2
 
 - kritischen JavaScript-Startfehler aus 0.6.1 behoben

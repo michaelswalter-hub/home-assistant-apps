@@ -3,6 +3,7 @@ const seriesGrid = document.getElementById("seriesGrid");
 const emptyState = document.getElementById("emptyState");
 const bookCount = document.getElementById("bookCount");
 const searchInput = document.getElementById("searchInput");
+const ratingFilter = document.getElementById("ratingFilter");
 const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
 const emptyUploadButton = document.getElementById("emptyUploadButton");
@@ -31,6 +32,7 @@ let books = [];
 let series = [];
 let genres = [];
 let currentView = "books";
+let selectedRating = 0;
 
 function api(path) {
   return `api/${path}`;
@@ -97,6 +99,47 @@ function setView(view) {
   render();
 }
 
+
+function ratingStarsHtml(book, className = "book-rating-star") {
+  const rating = Number(book.rating || 0);
+  return Array.from({length: 5}, (_, index) => {
+    const value = index + 1;
+    return `<button type="button" class="${className}${value <= rating ? " active" : ""}" data-value="${value}" aria-label="${value} Sterne">★</button>`;
+  }).join("");
+}
+
+async function setBookRating(bookId, rating) {
+  const response = await fetch(api(`books/${bookId}/rating`), {
+    method: "PATCH",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({rating})
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Bewertung konnte nicht gespeichert werden.");
+
+  const index = books.findIndex(book => book.id === bookId);
+  if (index >= 0) books[index] = result;
+  render();
+  return result;
+}
+
+function bindRatingButtons(container, book) {
+  container.querySelectorAll(".book-rating-star").forEach(button => {
+    button.addEventListener("click", async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const value = Number(button.dataset.value);
+      const next = Number(book.rating || 0) === value ? 0 : value;
+      try {
+        const updated = await setBookRating(book.id, next);
+        book.rating = updated.rating;
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+}
+
 function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
 
@@ -111,6 +154,7 @@ function filteredBooks() {
     // Hidden genres hide books during normal browsing. A search for the genre
     // deliberately reveals them again so the user can still find them.
     if (bookIsHidden(book) && !genreMatch) return false;
+    if (selectedRating && Number(book.rating || 0) !== selectedRating) return false;
 
     return (
       !query ||
@@ -172,6 +216,12 @@ function render() {
       }
       card.appendChild(genreWrap);
     }
+
+    const ratingWrap = document.createElement("div");
+    ratingWrap.className = "book-rating";
+    ratingWrap.innerHTML = ratingStarsHtml(book);
+    card.appendChild(ratingWrap);
+    bindRatingButtons(ratingWrap, book);
 
     card.addEventListener("click", () => showBook(book.id));
     card.addEventListener("keydown", event => {
@@ -255,6 +305,7 @@ async function showBook(id) {
         <h2>${esc(book.title)}</h2>
         ${book.subtitle ? `<p class="subtitle">${esc(book.subtitle)}</p>` : ""}
         <p class="detail-author">${esc(book.author || "Autor unbekannt")}</p>
+        <div id="detailRating" class="book-rating detail-rating">${ratingStarsHtml(book)}</div>
         ${(book.genres || []).length ? `<div class="genre-chips">${(book.genres || []).map(g => `<span class="genre-chip${g.hidden ? " hidden-genre" : ""}">${esc(g.name)}${g.hidden ? " · ausgeblendet" : ""}</span>`).join("")}</div>` : ""}
 
         <div class="detail-top-actions">
@@ -283,6 +334,9 @@ async function showBook(id) {
     </div>
   `;
   if (!dialog.open) dialog.showModal();
+
+  const detailRating = document.getElementById("detailRating");
+  if (detailRating) bindRatingButtons(detailRating, book);
 
   document.getElementById("editBook").addEventListener("click", () => showEditBook(book));
 
@@ -655,6 +709,21 @@ uploadButton.addEventListener("click", () => fileInput.click());
 emptyUploadButton.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => uploadFiles([...fileInput.files]));
 searchInput.addEventListener("input", render);
+
+if (ratingFilter) {
+  ratingFilter.querySelectorAll(".rating-filter-star").forEach(button => {
+    button.addEventListener("click", () => {
+      const value = Number(button.dataset.rating);
+      selectedRating = selectedRating === value ? 0 : value;
+
+      ratingFilter.querySelectorAll(".rating-filter-star").forEach(star => {
+        const starValue = Number(star.dataset.rating);
+        star.classList.toggle("active", selectedRating > 0 && starValue <= selectedRating);
+      });
+      render();
+    });
+  });
+}
 booksViewButton.addEventListener("click", () => setView("books"));
 seriesViewButton.addEventListener("click", () => setView("series"));
 

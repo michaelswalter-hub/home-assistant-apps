@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.6.2
+## Version 0.7.0
 
 Die erste Version unterstützt:
 
@@ -151,3 +151,13 @@ Genres werden jetzt ausschließlich in den Einstellungen verwaltet:
 ## Verhalten der Ansichten
 
 - Bücher mit Serienzuordnung erscheinen nur noch in der Serienansicht
+
+
+## Neu in 0.7.0
+
+- 1–5-Sterne-Bewertung für Bücher
+- Bewertung direkt auf den Buchkarten ohne Öffnen der Detailansicht
+- Sternebewertung auch in der Detailansicht
+- Sternefilter in der Bücherübersicht
+- Klick auf denselben Filterstern hebt den Filter wieder auf
+- breitere Metadatensuche mit bereinigten Titeln, Untertiteln/Serienzusätzen und Autorvarianten

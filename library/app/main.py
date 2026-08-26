@@ -64,6 +64,7 @@ def public_book(book: dict) -> dict:
         "file_name": book["file_name"],
         "file_size": book["file_size"],
         "metadata_source": book.get("metadata_source"),
+        "rating": int(book.get("rating") or 0),
         "genres": db.get_book_genres(book["id"]),
         "series_id": book.get("series_id"),
         "series_name": book.get("series_name"),
@@ -83,7 +84,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.6.2"})
+    return jsonify({"status": "ok", "version": "0.7.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -156,6 +157,7 @@ def upload_book():
             "cover_path": cover_path,
             "sha256": sha256,
             "metadata_source": enriched.get("metadata_source") or "Datei",
+            "rating": 0,
             "genres": None,
             "series_id": None,
             "series_index": None,
@@ -168,6 +170,26 @@ def upload_book():
         shutil.rmtree(book_dir, ignore_errors=True)
         app.logger.exception("Upload fehlgeschlagen")
         return jsonify({"error": f"Das Buch konnte nicht verarbeitet werden: {exc}"}), 500
+
+
+
+@app.patch("/api/books/<book_id>/rating")
+def rate_book(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        rating = int(data.get("rating", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Bewertung muss zwischen 0 und 5 liegen."}), 400
+
+    if rating < 0 or rating > 5:
+        return jsonify({"error": "Bewertung muss zwischen 0 und 5 liegen."}), 400
+
+    db.update_book(book_id, {"rating": rating, "updated_at": utcnow()})
+    return jsonify(public_book(db.get_book(book_id)))
 
 
 @app.patch("/api/books/<book_id>")

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS books (
     cover_path TEXT,
     sha256 TEXT NOT NULL UNIQUE,
     metadata_source TEXT,
+    rating INTEGER NOT NULL DEFAULT 0,
     genres TEXT,
     series_id TEXT,
     series_index REAL,
@@ -91,6 +92,8 @@ class Database:
             conn.execute("ALTER TABLE books ADD COLUMN series_index REAL")
         if "genres" not in columns:
             conn.execute("ALTER TABLE books ADD COLUMN genres TEXT")
+        if "rating" not in columns:
+            conn.execute("ALTER TABLE books ADD COLUMN rating INTEGER NOT NULL DEFAULT 0")
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_books_series ON books(series_id, series_index)"
         )
