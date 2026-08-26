@@ -578,109 +578,140 @@ def _fill_candidate_descriptions(candidates: list[dict], language: str = "de") -
     return candidates
 
 
-def search_metadata_candidates(local: dict, language: str = "de", limit: int = 15) -> list[dict]:
+
+def search_metadata_candidates(local: dict, language: str = "de", limit: int = 16) -> list[dict]:
     title = local.get("title")
     author = local.get("author")
     isbn = local.get("isbn")
-    candidates = []
+
+    google_candidates = []
+    openlibrary_candidates = []
 
     title_variants = _search_title_variants(title)
     author_variants = _search_author_variants(author)
 
     # Exact ISBN first when available.
     if isbn:
-        candidates.extend(_google_books_candidates(f"isbn:{isbn}", language))
-        candidates.extend(_open_library_candidates(isbn, title, author))
+        google_candidates.extend(_google_books_candidates(f"isbn:{isbn}", language))
+        openlibrary_candidates.extend(_open_library_candidates(isbn, title, author))
 
-    # Broad Google Books queries. Because the user selects the result manually,
-    # it is better to show imperfect candidates than to hide all results.
-    queries = []
-
+    # Google Books queries.
+    google_queries = []
     if title_variants and author_variants:
         for search_title in title_variants[:5]:
             for search_author in author_variants[:3]:
-                queries.extend([
+                google_queries.extend([
                     f'intitle:"{search_title}" inauthor:"{search_author}"',
                     f"intitle:{search_title} inauthor:{search_author}",
                     f"{search_title} {search_author}",
                 ])
-            # Title-only fallbacks are important for catalog records whose author
-            # spelling differs from EPUB/PDF metadata.
-            queries.extend([
+            google_queries.extend([
                 f'intitle:"{search_title}"',
                 f"intitle:{search_title}",
                 search_title,
             ])
     elif title_variants:
         for search_title in title_variants:
-            queries.extend([
+            google_queries.extend([
                 f'intitle:"{search_title}"',
                 f"intitle:{search_title}",
                 search_title,
             ])
     elif author_variants:
         for search_author in author_variants:
-            queries.extend([
+            google_queries.extend([
                 f'inauthor:"{search_author}"',
                 f"inauthor:{search_author}",
                 search_author,
             ])
 
     seen_queries = set()
-    for query in queries:
+    for query in google_queries:
         key = query.casefold().strip()
         if not key or key in seen_queries:
             continue
         seen_queries.add(key)
-        candidates.extend(_google_books_candidates(query, language))
+        google_candidates.extend(_google_books_candidates(query, language))
 
-    # Open Library: title + author, title-only and general query fallbacks.
+    # Open Library queries.
     if title_variants:
         for search_title in title_variants[:5]:
             if author_variants:
                 for search_author in author_variants[:3]:
-                    candidates.extend(_open_library_candidates(None, search_title, search_author))
-                    candidates.extend(_open_library_general_candidates(search_title, search_author))
-            candidates.extend(_open_library_candidates(None, search_title, None))
-            candidates.extend(_open_library_general_candidates(search_title, None))
+                    openlibrary_candidates.extend(
+                        _open_library_candidates(None, search_title, search_author)
+                    )
+                    openlibrary_candidates.extend(
+                        _open_library_general_candidates(search_title, search_author)
+                    )
+            openlibrary_candidates.extend(
+                _open_library_candidates(None, search_title, None)
+            )
+            openlibrary_candidates.extend(
+                _open_library_general_candidates(search_title, None)
+            )
     elif author_variants:
         for search_author in author_variants[:3]:
-            candidates.extend(_open_library_candidates(None, None, search_author))
-            candidates.extend(_open_library_general_candidates(None, search_author))
+            openlibrary_candidates.extend(
+                _open_library_candidates(None, None, search_author)
+            )
+            openlibrary_candidates.extend(
+                _open_library_general_candidates(None, search_author)
+            )
 
-    # Rank, but deliberately do not apply a hard similarity cutoff.
-    ranked = sorted(
-        candidates,
-        key=lambda candidate: _match_score(candidate, title, author),
-        reverse=True,
-    )
-
-    unique = []
-    seen = set()
-    for candidate in ranked:
-        if not candidate or not candidate.get("title"):
-            continue
-
-        isbn_key = normalize_isbn(candidate.get("isbn")) or ""
-        key = (
-            isbn_key,
-            _normalize_title(candidate.get("title")),
-            _normalize_title(candidate.get("author")),
-            candidate.get("published_date") or "",
-            candidate.get("metadata_source") or "",
+    def prepare_provider(items: list[dict], provider: str, provider_limit: int) -> list[dict]:
+        ranked = sorted(
+            items,
+            key=lambda candidate: _match_score(candidate, title, author),
+            reverse=True,
         )
-        if key in seen:
-            continue
-        seen.add(key)
 
-        item = dict(candidate)
-        item["score"] = round(_match_score(candidate, title, author), 1)
-        unique.append(item)
+        unique = []
+        seen = set()
+        for candidate in ranked:
+            if not candidate or not candidate.get("title"):
+                continue
 
-        if len(unique) >= limit:
+            key = (
+                normalize_isbn(candidate.get("isbn")) or "",
+                _normalize_title(candidate.get("title")),
+                _normalize_title(candidate.get("author")),
+                candidate.get("published_date") or "",
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+
+            item = dict(candidate)
+            item["metadata_source"] = provider
+            item["score"] = round(_match_score(candidate, title, author), 1)
+            unique.append(item)
+
+            if len(unique) >= provider_limit:
+                break
+
+        return unique
+
+    # Keep room for both providers instead of allowing one provider to dominate.
+    per_provider = max(4, limit // 2)
+    google = prepare_provider(google_candidates, "Google Books", per_provider)
+    openlibrary = prepare_provider(openlibrary_candidates, "Open Library", per_provider)
+
+    # Alternate providers in the final list. This guarantees visible diversity
+    # whenever both services return matches.
+    combined = []
+    max_len = max(len(google), len(openlibrary))
+    for index in range(max_len):
+        if index < len(google):
+            combined.append(google[index])
+        if index < len(openlibrary):
+            combined.append(openlibrary[index])
+        if len(combined) >= limit:
             break
 
-    return _fill_candidate_descriptions(unique, language)
+    # Open Library often lacks descriptions. Fill those from Google Books when possible.
+    combined = _fill_candidate_descriptions(combined, language)
+    return combined[:limit]
 
 
 def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = False) -> dict:

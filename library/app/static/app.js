@@ -284,16 +284,15 @@ function renderSeriesView() {
     const card = document.createElement("article");
     card.className = "series-card";
     card.tabIndex = 0;
-    const covers = members.slice(0, 3).map(book =>
-      `<img src="${api(`books/${book.id}/cover`)}" alt="" onerror="this.outerHTML='<div class=&quot;series-cover-placeholder&quot;>Kein Cover</div>'">`
-    ).join("");
-    const placeholders = Array.from(
-      {length: Math.max(0, 3 - Math.min(3, members.length))},
-      () => `<div class="series-cover-placeholder">Kein Cover</div>`
-    ).join("");
+
+    const firstBook = members[0] || null;
+    const coverHtml = firstBook
+      ? `<img src="${api(`books/${firstBook.id}/cover`)}" alt="Cover von ${esc(firstBook.title)}"
+           onerror="this.outerHTML='<div class=&quot;series-cover-placeholder&quot;>Kein Cover</div>'">`
+      : `<div class="series-cover-placeholder">Kein Cover</div>`;
 
     card.innerHTML = `
-      <div class="series-covers">${covers}${placeholders}</div>
+      <div class="series-covers single-cover">${coverHtml}</div>
       <div class="series-card-body">
         <h2>${esc(item.name)}</h2>
         <p>${item.book_count} ${item.book_count === 1 ? "Buch" : "Bücher"}</p>
@@ -677,7 +676,7 @@ async function showMetadataCandidates(book) {
         <p>${esc(candidate.author || "Autor unbekannt")}</p>
         <p><strong>ISBN:</strong> ${esc(candidate.isbn || "–")}</p>
         <p><strong>Ausgabe:</strong> ${esc(candidate.published_date || "–")}${candidate.publisher ? ` · ${esc(candidate.publisher)}` : ""}</p>
-        <p><strong>Quelle:</strong> ${esc(candidate.metadata_source || "Online")}</p>
+        <p><strong>Quelle:</strong> <span class="metadata-source-badge">${esc(candidate.metadata_source || "Online")}</span></p>
         ${candidate.description_source ? `<p><strong>Zusammenfassung:</strong> ${esc(candidate.description_source)}</p>` : ""}
         <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung in diesem Treffer.")}</p>
         <div class="metadata-candidate-actions">

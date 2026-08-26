@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.3
+
+- Metadaten-Treffer werden ausgewogen aus Google Books und Open Library angezeigt
+- ein Anbieter kann die Trefferliste nicht mehr vollständig verdrängen
+- Quellen in der Trefferliste deutlicher markiert
+- Serienübersicht zeigt nur noch das Cover des ersten Buches/Bandes
+
 ## 0.7.2
 
 - Open-Library-Treffer werden bei fehlender Zusammenfassung mit Google Books ergänzt
