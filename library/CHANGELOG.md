@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.1
+
+- Sternebewertung aktualisiert sofort alle Sterne bis zur gewählten Bewertung
+- Filtersterne zeigen ebenfalls alle Sterne bis zur Auswahl gelb
+- erneuter Klick auf dieselbe Filterbewertung deaktiviert den Filter vollständig
+- harte Ähnlichkeitsschwelle der Metadatensuche entfernt
+- deutlich breitere Titel-/Autor-Suchvarianten
+- zusätzliche reine Titel- und Open-Library-Fallbacks
+- bis zu 15 Metadaten-Treffer werden zur manuellen Auswahl gezeigt
+
 ## 0.7.0
 
 - Sternebewertung 0–5 hinzugefügt

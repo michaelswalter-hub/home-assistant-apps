@@ -108,6 +108,16 @@ function ratingStarsHtml(book, className = "book-rating-star") {
   }).join("");
 }
 
+
+function setRatingVisual(container, rating) {
+  if (!container) return;
+  const numericRating = Number(rating || 0);
+  container.querySelectorAll(".book-rating-star").forEach(star => {
+    const value = Number(star.dataset.value);
+    star.classList.toggle("active", value <= numericRating);
+  });
+}
+
 async function setBookRating(bookId, rating) {
   const response = await fetch(api(`books/${bookId}/rating`), {
     method: "PATCH",
@@ -119,21 +129,34 @@ async function setBookRating(bookId, rating) {
 
   const index = books.findIndex(book => book.id === bookId);
   if (index >= 0) books[index] = result;
+
+  // Re-render the overview after persistence so filters and sort state stay correct.
   render();
   return result;
 }
 
 function bindRatingButtons(container, book) {
+  setRatingVisual(container, book.rating || 0);
+
   container.querySelectorAll(".book-rating-star").forEach(button => {
     button.addEventListener("click", async event => {
       event.preventDefault();
       event.stopPropagation();
+
       const value = Number(button.dataset.value);
-      const next = Number(book.rating || 0) === value ? 0 : value;
+      const previous = Number(book.rating || 0);
+      const next = previous === value ? 0 : value;
+
+      // Update all five stars immediately, so e.g. selecting 2 lights 1 + 2.
+      book.rating = next;
+      setRatingVisual(container, next);
+
       try {
         const updated = await setBookRating(book.id, next);
         book.rating = updated.rating;
       } catch (error) {
+        book.rating = previous;
+        setRatingVisual(container, previous);
         alert(error.message);
       }
     });
@@ -711,18 +734,30 @@ fileInput.addEventListener("change", () => uploadFiles([...fileInput.files]));
 searchInput.addEventListener("input", render);
 
 if (ratingFilter) {
-  ratingFilter.querySelectorAll(".rating-filter-star").forEach(button => {
+  const filterStars = [...ratingFilter.querySelectorAll(".rating-filter-star")];
+
+  function paintRatingFilter() {
+    filterStars.forEach(star => {
+      const starValue = Number(star.dataset.rating);
+      star.classList.toggle(
+        "active",
+        selectedRating > 0 && starValue <= selectedRating
+      );
+    });
+  }
+
+  filterStars.forEach(button => {
     button.addEventListener("click", () => {
       const value = Number(button.dataset.rating);
-      selectedRating = selectedRating === value ? 0 : value;
 
-      ratingFilter.querySelectorAll(".rating-filter-star").forEach(star => {
-        const starValue = Number(star.dataset.rating);
-        star.classList.toggle("active", selectedRating > 0 && starValue <= selectedRating);
-      });
+      // Clicking the active rating a second time switches the filter completely off.
+      selectedRating = selectedRating === value ? 0 : value;
+      paintRatingFilter();
       render();
     });
   });
+
+  paintRatingFilter();
 }
 booksViewButton.addEventListener("click", () => setView("books"));
 seriesViewButton.addEventListener("click", () => setView("series"));

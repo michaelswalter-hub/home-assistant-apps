@@ -505,69 +505,111 @@ def _search_author_variants(author: str | None) -> list[str]:
             unique.append(value)
     return unique[:3]
 
-def search_metadata_candidates(local: dict, language: str = "de", limit: int = 10) -> list[dict]:
+
+def search_metadata_candidates(local: dict, language: str = "de", limit: int = 15) -> list[dict]:
     title = local.get("title")
     author = local.get("author")
     isbn = local.get("isbn")
     candidates = []
 
+    title_variants = _search_title_variants(title)
+    author_variants = _search_author_variants(author)
+
+    # Exact ISBN first when available.
     if isbn:
         candidates.extend(_google_books_candidates(f"isbn:{isbn}", language))
         candidates.extend(_open_library_candidates(isbn, title, author))
 
+    # Broad Google Books queries. Because the user selects the result manually,
+    # it is better to show imperfect candidates than to hide all results.
     queries = []
-    title_variants = _search_title_variants(title)
-    author_variants = _search_author_variants(author)
 
     if title_variants and author_variants:
-        for search_title in title_variants[:4]:
-            for search_author in author_variants[:2]:
+        for search_title in title_variants[:5]:
+            for search_author in author_variants[:3]:
                 queries.extend([
                     f'intitle:"{search_title}" inauthor:"{search_author}"',
                     f"intitle:{search_title} inauthor:{search_author}",
                     f"{search_title} {search_author}",
                 ])
-            queries.append(search_title)
+            # Title-only fallbacks are important for catalog records whose author
+            # spelling differs from EPUB/PDF metadata.
+            queries.extend([
+                f'intitle:"{search_title}"',
+                f"intitle:{search_title}",
+                search_title,
+            ])
     elif title_variants:
         for search_title in title_variants:
-            queries.extend([f'intitle:"{search_title}"', f"intitle:{search_title}", search_title])
+            queries.extend([
+                f'intitle:"{search_title}"',
+                f"intitle:{search_title}",
+                search_title,
+            ])
     elif author_variants:
         for search_author in author_variants:
-            queries.extend([f'inauthor:"{search_author}"', f"inauthor:{search_author}"])
+            queries.extend([
+                f'inauthor:"{search_author}"',
+                f"inauthor:{search_author}",
+                search_author,
+            ])
 
     seen_queries = set()
     for query in queries:
         key = query.casefold().strip()
-        if key not in seen_queries:
-            seen_queries.add(key)
-            candidates.extend(_google_books_candidates(query, language))
+        if not key or key in seen_queries:
+            continue
+        seen_queries.add(key)
+        candidates.extend(_google_books_candidates(query, language))
 
-    for search_title in (title_variants or [title])[:4]:
-        for search_author in (author_variants or [author])[:2]:
-            candidates.extend(_open_library_candidates(None, search_title, search_author))
-            candidates.extend(_open_library_general_candidates(search_title, search_author))
+    # Open Library: title + author, title-only and general query fallbacks.
+    if title_variants:
+        for search_title in title_variants[:5]:
+            if author_variants:
+                for search_author in author_variants[:3]:
+                    candidates.extend(_open_library_candidates(None, search_title, search_author))
+                    candidates.extend(_open_library_general_candidates(search_title, search_author))
+            candidates.extend(_open_library_candidates(None, search_title, None))
+            candidates.extend(_open_library_general_candidates(search_title, None))
+    elif author_variants:
+        for search_author in author_variants[:3]:
+            candidates.extend(_open_library_candidates(None, None, search_author))
+            candidates.extend(_open_library_general_candidates(None, search_author))
 
-    ranked = sorted(candidates, key=lambda c: _match_score(c, title, author), reverse=True)
+    # Rank, but deliberately do not apply a hard similarity cutoff.
+    ranked = sorted(
+        candidates,
+        key=lambda candidate: _match_score(candidate, title, author),
+        reverse=True,
+    )
+
     unique = []
     seen = set()
     for candidate in ranked:
-        if title and _similarity(title, candidate.get("title")) < 0.42:
+        if not candidate or not candidate.get("title"):
             continue
+
+        isbn_key = normalize_isbn(candidate.get("isbn")) or ""
         key = (
-            normalize_isbn(candidate.get("isbn")) or "",
+            isbn_key,
             _normalize_title(candidate.get("title")),
             _normalize_title(candidate.get("author")),
             candidate.get("published_date") or "",
+            candidate.get("metadata_source") or "",
         )
         if key in seen:
             continue
         seen.add(key)
-        candidate = dict(candidate)
-        candidate["score"] = round(_match_score(candidate, title, author), 1)
-        unique.append(candidate)
+
+        item = dict(candidate)
+        item["score"] = round(_match_score(candidate, title, author), 1)
+        unique.append(item)
+
         if len(unique) >= limit:
             break
+
     return unique
+
 
 def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = False) -> dict:
     title = local.get("title")
