@@ -387,3 +387,15 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .variant-label{font-size:12px;font-weight:800;color:var(--muted)}
 .variant-pill{display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);text-decoration:none;font-size:13px;font-weight:700}
 .variant-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* 0.5.25 – Varianten sauber getrennt von Zeit/Fakten */
+.ai-variant-mini{background:color-mix(in srgb,var(--accent) 8%,var(--card))}
+.variant-panel{margin:14px 0;padding:13px 14px;border:1px solid var(--border);border-radius:16px;background:var(--bg)}
+.variant-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.variant-panel-head small{display:block;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.12em}
+.variant-panel-head b{display:block;margin-top:2px}
+.recipe-variant-switcher{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0}
+.variant-entry{display:inline-flex;align-items:center;gap:3px}
+.variant-delete-mini{width:24px;height:24px;display:grid;place-items:center;text-decoration:none;border-radius:50%;border:1px solid var(--border);color:var(--danger);background:var(--card);font-size:17px;line-height:1}
+.variant-reason{font-size:12px;color:var(--muted);margin:10px 0 0}
+.danger-button{background:var(--danger)!important;color:#fff!important;border-color:var(--danger)!important}

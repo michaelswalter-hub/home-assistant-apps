@@ -2,8 +2,8 @@
 <div class="page-head">
   <div>
     <p class="eyebrow">EINKAUFSLISTE</p>
-    <h1>🛒 Zutaten zu Bring!</h1>
-    <p class="subtle">{{recipe.title}}</p>
+    <h1>🛒 Zu Bring!</h1>
+    <p class="subtle">{{recipe["title"]}}</p>
   </div>
 </div>
 
@@ -12,77 +12,37 @@
 
 <section class="panel form-card">
 <form method="post">
+  <label>Einkaufsliste</label>
+  <select name="bring_entity" required>
+    <option value="">– Liste auswählen –</option>
+    {% for item in todo_entities %}
+    <option value="{{item["entity_id"]}}" {% if selected_entity==item["entity_id"] %}selected{% endif %}>{{item["name"]}}</option>
+    {% endfor %}
+  </select>
 
-  <div class="bring-list-picker">
-    <label>Einkaufsliste auswählen</label>
-    {% if todo_entities %}
-    <select name="bring_entity" required>
-      <option value="">– Liste auswählen –</option>
-      {% for item in todo_entities %}
-      <option value="{{item.entity_id}}" {% if selected_entity==item.entity_id %}selected{% endif %}>
-        {{item.name}}
-      </option>
+  {% if not todo_entities %}
+  <p class="field-help">Es wurde aktuell keine beschreibbare Home-Assistant-Einkaufsliste gefunden.</p>
+  {% endif %}
+
+  <div class="bring-summary">
+    <div class="section-head">
+      <h2>Zusammenfassung</h2>
+      <span class="summary-count">{{ingredients|length}} Zutaten</span>
+    </div>
+    <p class="subtle">Übertragen werden die Zutaten, die im Rezept nicht als vorhanden abgehakt sind.</p>
+    <ul>
+      {% for item in ingredients %}
+      <li>{{item}}</li>
+      {% else %}
+      <li class="all-done">✓ Alle Zutaten sind bereits vorhanden.</li>
       {% endfor %}
-    </select>
-    <p class="field-help">
-      Die App bevorzugt eindeutig erkennbare Bring!-Listen. Falls Home Assistant die Herkunft der Liste nicht mitsendet, werden die beschreibbaren Einkaufs-/To-do-Listen als Auswahl angezeigt.
-      Die zuletzt verwendete Liste wird beim nächsten Mal vorausgewählt.
-    </p>
-    {% else %}
-    <div class="notice error">
-      Home Assistant liefert aktuell keine beschreibbare To-do-Liste. Prüfe unter
-      Einstellungen → Geräte & Dienste, ob Bring! eingerichtet ist.
-    </div>
-    {% endif %}
-  </div>
-
-  <div class="section-head">
-    <div>
-      <h2>Zutaten auswählen</h2>
-      <p class="subtle">Entferne den Haken bei Zutaten, die du bereits zu Hause hast.</p>
-    </div>
-    <div class="bulk-actions">
-      <button type="button" onclick="setAll(true)">Alle</button>
-      <button type="button" onclick="setAll(false)">Keine</button>
-    </div>
-  </div>
-
-  <div class="ingredient-checks">
-  {% for item in ingredients %}
-    <label>
-      <input type="checkbox" name="ingredient" value="{{item}}" checked>
-      <span>{{item}}</span>
-    </label>
-  {% else %}
-    <div class="empty-inline">Keine Zutaten im Rezept gefunden.</div>
-  {% endfor %}
+    </ul>
   </div>
 
   <div class="form-actions">
-    <a class="secondary" href="?view=recipe&id={{recipe.id}}">Abbrechen</a>
-    <button class="primary" {% if not todo_entities %}disabled{% endif %}>
-      🛒 Ausgewählte Zutaten hinzufügen
-    </button>
+    <a class="secondary" href="?view=recipe&id={{recipe["id"]}}">Abbrechen</a>
+    <button class="primary" {% if not ingredients or not todo_entities %}disabled{% endif %}>🛒 Zu Bring! hinzufügen</button>
   </div>
-
 </form>
-
-{% if not diagnostics.api_ok or not todo_entities %}
-<details class="bring-diagnostics">
-  <summary>Technische Diagnose</summary>
-  <div>
-    <p>Home-Assistant-API: <b>{{"OK" if diagnostics.api_ok else "Fehler"}}</b></p>
-    <p>API-Token vorhanden: <b>{{"Ja" if diagnostics.token_present else "Nein"}}</b></p>
-    <p>Gefundene To-do-Entitäten: <b>{{diagnostics.todo_count}}</b></p>
-    {% if diagnostics.error %}<pre>{{diagnostics.error}}</pre>{% endif %}
-  </div>
-</details>
-{% endif %}
 </section>
-
-<script>
-function setAll(state){
-  document.querySelectorAll('input[name="ingredient"]').forEach(x=>x.checked=state);
-}
-</script>
 {% endblock %}

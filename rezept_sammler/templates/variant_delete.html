@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<section class="panel form-card">
+  <p class="eyebrow">REZEPTVERSION</p>
+  <h1>Variante löschen?</h1>
+  <p>Die Variante <b>{{variant.name}}</b> wird gelöscht. Das Originalrezept <b>{{recipe.title}}</b> bleibt erhalten.</p>
+  <form method="post">
+    <div class="form-actions">
+      <a class="secondary" href="?view=recipe&id={{recipe.id}}&variant={{variant.id}}">Abbrechen</a>
+      <button class="danger-button">🗑 Variante löschen</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

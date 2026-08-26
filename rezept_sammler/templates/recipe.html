@@ -1,63 +1,99 @@
 {% extends "base.html" %}{% block content %}
 
-{% set display_ingredients = selected_variant.ingredients if selected_variant else recipe.ingredients %}
-{% set display_steps = selected_variant.steps if selected_variant else recipe.steps %}
-{% set display_servings = selected_variant.servings if selected_variant else recipe.servings %}
-{% set display_prep = selected_variant.prep_minutes if selected_variant else recipe.prep_minutes %}
-{% set display_cook = selected_variant.cook_minutes if selected_variant else recipe.cook_minutes %}
-{% set display_total = selected_variant.total_minutes if selected_variant else recipe.total_minutes %}
-
 <article class="card detail">
-<div class="pad"><h1>{{recipe.title}}</h1>
-<a class="button" href="?view=variant_new&id={{recipe.id}}">✨ Mit KI anpassen</a>
-<div class="recipe-actionbar">
-  
-  <a class="action-mini" href="?view=cook&id={{recipe.id}}"><span>👨‍🍳</span><b>Kochmodus</b></a>
-  <a class="action-mini" href="?view=edit&id={{recipe.id}}"><span>✏️</span><b>Bearbeiten</b></a>
-  <a class="action-mini bring-mini" href="?view=bring&id={{recipe.id}}"><span>🛒</span><b>Bring</b></a>
-</div>
-<p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>{% if recipe_tags %}<div class="tag-row">{% for tag in recipe_tags %}<span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>{% endfor %}</div>{% endif %}
-{% if recipe.source_url %}<p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>{% endif %}
-<div class="actions">
-</div></div></article>
+  <div class="pad">
+    <h1>{{recipe.title}}</h1>
+
+    <div class="recipe-actionbar">
+      <a class="action-mini" href="?view=cook&id={{recipe.id}}"><span>👨‍🍳</span><b>Kochmodus</b></a>
+      <a class="action-mini" href="?view=edit&id={{recipe.id}}"><span>✏️</span><b>Bearbeiten</b></a>
+      <a class="action-mini bring-mini" href="?view=bring&id={{recipe.id}}"><span>🛒</span><b>Bring</b></a>
+      <a class="action-mini ai-variant-mini" href="?view=variant_new&id={{recipe.id}}"><span>✨</span><b>KI anpassen</b></a>
+    </div>
+
+    {% if variants %}
+    <div class="variant-panel">
+      <div class="variant-panel-head">
+        <div><small>REZEPTVERSION</small><b>{% if selected_variant %}{{selected_variant.name}}{% else %}Original{% endif %}</b></div>
+      </div>
+      <div class="recipe-variant-switcher">
+        <a class="variant-pill {% if not selected_variant %}active{% endif %}" href="?view=recipe&id={{recipe.id}}">Original</a>
+        {% for v in variants %}
+        <span class="variant-entry">
+          <a class="variant-pill {% if selected_variant and selected_variant.id==v.id %}active{% endif %}"
+             href="?view=recipe&id={{recipe.id}}&variant={{v.id}}">{{v.name}}</a>
+          <a class="variant-delete-mini" href="?view=variant_delete&id={{recipe.id}}&variant={{v.id}}" aria-label="Variante {{v.name}} löschen" title="Variante löschen">×</a>
+        </span>
+        {% endfor %}
+      </div>
+      {% if selected_variant and selected_variant.prompt %}
+      <p class="variant-reason">✨ {{selected_variant.prompt}}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <p>📚 {{ cookbook_names|join(" · ") if cookbook_names else "Kein Kochbuch" }}</p>
+    {% if recipe_tags %}
+    <div class="tag-row">
+      {% for tag in recipe_tags %}
+      <span class="tag-arrow" style="--tag-color:{{tag.color or '#5b7cfa'}}"># {{tag.name}}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if recipe.source_url %}
+    <p class="source">🔗 Quelle: <a href="{{recipe.source_url}}" target="_blank" rel="noopener noreferrer">{{recipe.source_name or recipe.source_url}}</a></p>
+    {% endif %}
+  </div>
+</article>
+
 {% if gallery %}
 <section class="recipe-gallery">
-<div class="gallery-track">
-{% for img in gallery %}
-<figure class="gallery-slide" id="bild-{{img.id}}">
-<img src="images/{{img.filename}}" alt="{{recipe.title}}">
-</figure>
-{% endfor %}
-</div>
-{% if gallery|length > 1 %}<div class="gallery-dots">{% for img in gallery %}<a href="#bild-{{img.id}}" aria-label="Bild {{loop.index}}"></a>{% endfor %}</div>{% endif %}
+  <div class="gallery-track">
+    {% for img in gallery %}
+    <figure class="gallery-slide" id="bild-{{img.id}}">
+      <img src="images/{{img.filename}}" alt="{{recipe.title}}">
+    </figure>
+    {% endfor %}
+  </div>
+  {% if gallery|length > 1 %}
+  <div class="gallery-dots">
+    {% for img in gallery %}<a href="#bild-{{img.id}}" aria-label="Bild {{loop.index}}"></a>{% endfor %}
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 
 <section class="recipe-facts">
-  {% if recipe.prep_minutes or recipe.cook_minutes or recipe.total_minutes %}
-  <div class="fact-card"><span>⏱️</span><div><small>Zeit</small>
-    
-{% if variants %}
-<div class="recipe-variant-switcher">
-  <span class="variant-label">Version:</span>
-  <a class="variant-pill {% if not selected_variant %}active{% endif %}" href="?view=recipe&id={{recipe.id}}">Original</a>
-  {% for v in variants %}
-  <a class="variant-pill {% if selected_variant and selected_variant.id==v.id %}active{% endif %}"
-     href="?view=recipe&id={{recipe.id}}&variant={{v.id}}">{{v.name}}</a>
-  {% endfor %}
-</div>
-{% endif %}
-{% if recipe.total_minutes %}<b>{{human_minutes(display_total)}}</b>
-    {% elif recipe.prep_minutes or recipe.cook_minutes %}<b>{{human_minutes((recipe.prep_minutes or 0)+(recipe.cook_minutes or 0))}}</b>{% endif %}
-    <em>{% if recipe.prep_minutes %}Vorbereitung {{human_minutes(recipe.prep_minutes)}}{% endif %}{% if recipe.cook_minutes %} · Kochen {{human_minutes(recipe.cook_minutes)}}{% endif %}</em>
-  </div></div>{% endif %}
-  {% if recipe.servings %}<div class="fact-card"><span>👥</span><div><small>Portionen</small><b>{{display_servings}}</b></div></div>{% endif %}
-  {% if recipe.calories_serving %}<div class="fact-card"><span>🔥</span><div><small>Kalorien</small><b>{{recipe.calories_serving|round|int}} kcal</b><em>pro Portion</em></div></div>{% endif %}
+  {% if display_prep or display_cook or display_total %}
+  <div class="fact-card">
+    <span>⏱️</span>
+    <div>
+      <small>Zeit</small>
+      {% if display_total %}
+      <b>{{human_minutes(display_total)}}</b>
+      {% else %}
+      <b>{{human_minutes((display_prep or 0)+(display_cook or 0))}}</b>
+      {% endif %}
+      <em>
+        {% if display_prep %}Vorbereitung {{human_minutes(display_prep)}}{% endif %}
+        {% if display_cook %}{% if display_prep %} · {% endif %}Kochen {{human_minutes(display_cook)}}{% endif %}
+      </em>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if display_servings %}
+  <div class="fact-card"><span>👥</span><div><small>Portionen</small><b>{{display_servings}}</b></div></div>
+  {% endif %}
+
+  {% if recipe.calories_serving %}
+  <div class="fact-card"><span>🔥</span><div><small>Kalorien</small><b>{{recipe.calories_serving|round|int}} kcal</b><em>pro Portion · Original</em></div></div>
+  {% endif %}
 </section>
 
 {% if recipe.calories_serving or recipe.protein_g or recipe.carbs_g or recipe.fat_g %}
 <section class="panel nutrition-overview">
-  <div class="section-head"><h2>🥗 Nährwerte</h2><small class="subtle">geschätzte Werte pro Portion</small></div>
+  <div class="section-head"><h2>🥗 Nährwerte</h2><small class="subtle">Originalrezept · geschätzte Werte pro Portion</small></div>
   <div class="nutrition-grid">
     <div><b>{{recipe.calories_serving|round|int}}</b><span>kcal</span></div>
     <div><b>{{recipe.protein_g|round(1)}}</b><span>g Eiweiß</span></div>
@@ -81,120 +117,62 @@
   <span class="portion-hint">Zutatenmengen werden nur in der Anzeige angepasst.</span>
 </div>
 {% endif %}
-<div class="cols"><section class="card pad ingredients-card">
-<h2>🥕 Zutaten</h2>
-<div class="ingredient-groups">
-{% for group in ingredient_sections %}
-  <section class="ingredient-group">
-    {% if group["title"] %}<h3>{{group["title"]}}</h3>{% endif %}
-    <ul>
-    {% for item in group["items"] %}
-      <li class="ingredient-check-row {% if item in checked_ingredients %}is-checked{% endif %}">
-        <label>
-          <input type="checkbox"
-                 data-ingredient="{{item}}"
-                 {% if item in checked_ingredients %}checked{% endif %}
-                 onchange="toggleIngredient(this)">
-          <span class="ingredient-text" data-original="{{item|e}}">{{item}}</span>
-        </label>
-      </li>
-    {% endfor %}
-    </ul>
+
+<div class="cols">
+  <section class="card pad ingredients-card">
+    <h2>🥕 Zutaten</h2>
+    <div class="ingredient-groups">
+      {% for group in ingredient_sections %}
+      <section class="ingredient-group">
+        {% if group["title"] %}<h3>{{group["title"]}}</h3>{% endif %}
+        <ul>
+          {% for item in group["items"] %}
+          <li class="ingredient-check-row {% if item in checked_ingredients %}is-checked{% endif %}">
+            <label>
+              <input type="checkbox"
+                     data-ingredient="{{item|e}}"
+                     {% if item in checked_ingredients %}checked{% endif %}
+                     onchange="toggleIngredient(this)">
+              <span class="ingredient-text" data-original="{{item|e}}">{{item}}</span>
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endfor %}
+    </div>
   </section>
-{% endfor %}
+
+  <section class="card pad">
+    <h2>👨‍🍳 Zubereitung</h2>
+    <div class="recipe-step-list">
+      {% for x in display_steps.splitlines() if x.strip() %}
+      <div class="recipe-step-card">
+        <div class="recipe-step-number">{{loop.index}}</div>
+        <div class="recipe-step-text">{{x}}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
 </div>
-</section>
+
 <section class="card pad">
-<h2>👨‍🍳 Zubereitung</h2>
-<div class="recipe-step-list">
-{% for x in display_steps.splitlines() if x.strip() %}
-  <div class="recipe-step-card">
-    <div class="recipe-step-number">{{loop.index}}</div>
-    <div class="recipe-step-text">{{x}}</div>
+  <h2>📝 Koch-Timeline</h2>
+  <form method="post" action="?view=note&id={{recipe.id}}">
+    <select name="rating">
+      <option value="5">★★★★★</option><option value="4">★★★★☆</option>
+      <option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option>
+    </select>
+    <textarea name="note" placeholder="Heute gemacht – war sehr gut."></textarea>
+    <button class="primary">＋ Eintragen</button>
+  </form>
+  <div class="timeline">
+    {% for n in notes %}
+    <div><b>{{safe_date(n.cooked_at)}}</b><span class="stars">{{"★"*n.rating}}{{"☆"*(5-n.rating)}}</span><p>{{n.note}}</p></div>
+    {% else %}<p>Noch keine Einträge.</p>{% endfor %}
   </div>
-{% endfor %}
-</div>
-</section></div>
-<section class="card pad"><h2>📝 Koch-Timeline</h2><form method="post" action="?view=note&id={{recipe.id}}">
-<select name="rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select>
-<textarea name="note" placeholder="Heute gemacht – war sehr gut."></textarea><button class="primary">＋ Eintragen</button></form>
-<div class="timeline">{% for n in notes %}<div><b>{{safe_date(n.cooked_at)}}</b><span class="stars">{{"★"*n.rating}}{{"☆"*(5-n.rating)}}</span><p>{{n.note}}</p></div>{% else %}<p>Noch keine Einträge.</p>{% endfor %}</div></section>
+</section>
 
-<script>
-(function(){
-  const toolbar=document.querySelector('.portion-toolbar');
-  if(!toolbar) return;
-
-  const base=parseFloat(toolbar.dataset.baseServings || '0');
-  let current=base || 1;
-
-  function parseAmount(raw){
-    const s=raw.trim();
-
-    // mixed number: 1 1/2
-    let m=s.match(/^(\d+)\s+(\d+)\/(\d+)(\s+.*)?$/);
-    if(m){
-      const val=parseFloat(m[1])+parseFloat(m[2])/parseFloat(m[3]);
-      return {value:val,rest:m[4]||'',kind:'mixed'};
-    }
-
-    // simple fraction: 1/2
-    m=s.match(/^(\d+)\/(\d+)(\s+.*)?$/);
-    if(m){
-      return {value:parseFloat(m[1])/parseFloat(m[2]),rest:m[3]||'',kind:'fraction'};
-    }
-
-    // decimal/integer, comma or dot
-    m=s.match(/^(\d+(?:[.,]\d+)?)(\s+.*)?$/);
-    if(m){
-      return {value:parseFloat(m[1].replace(',','.')),rest:m[2]||'',kind:'number'};
-    }
-    return null;
-  }
-
-  function prettyNumber(v){
-    if(Math.abs(v-Math.round(v))<0.001) return String(Math.round(v));
-
-    const fractions=[
-      [0.25,'¼'],[0.333,'⅓'],[0.5,'½'],[0.667,'⅔'],[0.75,'¾']
-    ];
-    const whole=Math.floor(v);
-    const frac=v-whole;
-    for(const [target,symbol] of fractions){
-      if(Math.abs(frac-target)<0.03){
-        return (whole?whole+' ':'')+symbol;
-      }
-    }
-
-    return String(Math.round(v*100)/100).replace('.',',');
-  }
-
-  function updateIngredients(){
-    if(!base) return;
-    const factor=current/base;
-    document.querySelectorAll('.ingredient-text').forEach(el=>{
-      const original=el.dataset.original || el.textContent;
-      const parsed=parseAmount(original);
-      if(!parsed){
-        el.textContent=original;
-        return;
-      }
-      el.textContent=prettyNumber(parsed.value*factor)+parsed.rest;
-    });
-    const out=document.getElementById('portion-count');
-    if(out) out.textContent=prettyNumber(current);
-  }
-
-  window.changePortions=function(delta){
-    current=Math.max(1,current+delta);
-    updateIngredients();
-  };
-
-  updateIngredients();
-})();
-</script>
-
-{% endblock %}
 <script>
 async function toggleIngredient(box){
   const form=new URLSearchParams();
@@ -210,4 +188,48 @@ async function toggleIngredient(box){
     });
   }catch(e){}
 }
+
+(function(){
+  const toolbar=document.querySelector('.portion-toolbar');
+  if(!toolbar) return;
+  const base=parseFloat(toolbar.dataset.baseServings || '0');
+  let current=base || 1;
+
+  function parseAmount(raw){
+    const s=raw.trim();
+    let m=s.match(/^(\d+)\s+(\d+)\/(\d+)(\s+.*)?$/);
+    if(m) return {value:parseFloat(m[1])+parseFloat(m[2])/parseFloat(m[3]),rest:m[4]||''};
+    m=s.match(/^(\d+)\/(\d+)(\s+.*)?$/);
+    if(m) return {value:parseFloat(m[1])/parseFloat(m[2]),rest:m[3]||''};
+    m=s.match(/^(\d+(?:[.,]\d+)?)(\s+.*)?$/);
+    if(m) return {value:parseFloat(m[1].replace(',','.')),rest:m[2]||''};
+    return null;
+  }
+  function prettyNumber(v){
+    if(Math.abs(v-Math.round(v))<0.001) return String(Math.round(v));
+    const fractions=[[0.25,'¼'],[0.333,'⅓'],[0.5,'½'],[0.667,'⅔'],[0.75,'¾']];
+    const whole=Math.floor(v), frac=v-whole;
+    for(const [target,symbol] of fractions){
+      if(Math.abs(frac-target)<0.03) return (whole?whole+' ':'')+symbol;
+    }
+    return String(Math.round(v*100)/100).replace('.',',');
+  }
+  function updateIngredients(){
+    if(!base) return;
+    const factor=current/base;
+    document.querySelectorAll('.ingredient-text').forEach(el=>{
+      const original=el.dataset.original || el.textContent;
+      const parsed=parseAmount(original);
+      el.textContent=parsed ? prettyNumber(parsed.value*factor)+parsed.rest : original;
+    });
+    const out=document.getElementById('portion-count');
+    if(out) out.textContent=prettyNumber(current);
+  }
+  window.changePortions=function(delta){
+    current=Math.max(1,current+delta);
+    updateIngredients();
+  };
+  updateIngredients();
+})();
 </script>
+{% endblock %}

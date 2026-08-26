@@ -626,7 +626,7 @@ def index():
     routes = {
         "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "ingredient_toggle": ingredient_toggle, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe, "pantry": pantry_recipe, "variant_new": recipe_variant_new,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "ingredient_toggle": ingredient_toggle, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe, "pantry": pantry_recipe, "variant_new": recipe_variant_new, "variant_delete": recipe_variant_delete,
     }
     return routes[view]() if view in routes else recipe_list()
 
@@ -826,6 +826,28 @@ def recipe_variant_new():
         change_request=request_text,variants=variants
     )
 
+def recipe_variant_delete():
+    rid=request.args.get("id",type=int)
+    vid=request.args.get("variant",type=int)
+    con=db()
+    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    variant=con.execute(
+        "SELECT * FROM recipe_variants WHERE id=? AND recipe_id=?",(vid,rid)
+    ).fetchone()
+    if not recipe or not variant:
+        con.close()
+        return redirect(f"?view=recipe&id={rid or ''}")
+
+    if request.method=="POST":
+        con.execute("DELETE FROM recipe_variants WHERE id=? AND recipe_id=?",(vid,rid))
+        con.commit()
+        con.close()
+        return redirect(f"?view=recipe&id={rid}")
+
+    con.close()
+    return render_template("variant_delete.html",recipe=recipe,variant=variant)
+
+
 def recipe_add_menu():
     return render_template("add_recipe.html")
 
@@ -952,7 +974,8 @@ def new_recipe():
 
 
 def recipe_detail():
-    rid=request.args.get("id",type=int); con=db()
+    rid=request.args.get("id",type=int)
+    con=db()
     ensure_ingredient_state_table(con)
     r=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
     if not r:
@@ -968,7 +991,17 @@ def recipe_detail():
         selected_variant=con.execute(
             "SELECT * FROM recipe_variants WHERE id=? AND recipe_id=?",(variant_id,rid)
         ).fetchone()
-    notes=con.execute("SELECT * FROM notes WHERE recipe_id=? ORDER BY cooked_at DESC,id DESC",(rid,)).fetchall()
+
+    display_ingredients=(selected_variant["ingredients"] if selected_variant else r["ingredients"]) or ""
+    display_steps=(selected_variant["steps"] if selected_variant else r["steps"]) or ""
+    display_servings=(selected_variant["servings"] if selected_variant else r["servings"]) or ""
+    display_prep=(selected_variant["prep_minutes"] if selected_variant else r["prep_minutes"]) or 0
+    display_cook=(selected_variant["cook_minutes"] if selected_variant else r["cook_minutes"]) or 0
+    display_total=(selected_variant["total_minutes"] if selected_variant else r["total_minutes"]) or 0
+
+    notes=con.execute(
+        "SELECT * FROM notes WHERE recipe_id=? ORDER BY cooked_at DESC,id DESC",(rid,)
+    ).fetchall()
     cookbook_names=[x["name"] for x in con.execute("""SELECT c.name FROM cookbooks c
         JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id
         WHERE rc.recipe_id=? ORDER BY c.name COLLATE NOCASE""",(rid,)).fetchall()]
@@ -977,14 +1010,33 @@ def recipe_detail():
         WHERE rt.recipe_id=? ORDER BY t.name COLLATE NOCASE""",(rid,)).fetchall()
     gallery=con.execute("""SELECT * FROM recipe_images
         WHERE recipe_id=? ORDER BY is_cover DESC,id DESC""",(rid,)).fetchall()
-    ingredient_sections=ingredient_groups(r["ingredients"] or "")
-    base_servings=servings_count(r["servings"] or "")
+
+    ingredient_sections=ingredient_groups(display_ingredients)
+    base_servings=servings_count(display_servings)
     checked_ingredients={x["ingredient"] for x in con.execute(
         "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
     con.close()
-    return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,
-        cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],
-        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections,checked_ingredients=checked_ingredients,base_servings=base_servings,variants=variants,selected_variant=selected_variant)
+
+    return render_template(
+        "recipe.html",
+        recipe=r,notes=notes,safe_date=safe_date,
+        cookbook_names=cookbook_names,
+        tag_names=[x["name"] for x in recipe_tags],
+        recipe_tags=recipe_tags,
+        gallery=gallery,
+        ingredient_sections=ingredient_sections,
+        checked_ingredients=checked_ingredients,
+        base_servings=base_servings,
+        variants=variants,
+        selected_variant=selected_variant,
+        display_ingredients=display_ingredients,
+        display_steps=display_steps,
+        display_servings=display_servings,
+        display_prep=display_prep,
+        display_cook=display_cook,
+        display_total=display_total
+    )
+
 
 def edit_recipe():
     rid=request.args.get("id",type=int)
@@ -1377,54 +1429,65 @@ def recipe_bring():
         con=db()
         ensure_ingredient_state_table(con)
         recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
-        if not recipe:
+        if recipe is None:
             raise ValueError("Rezept wurde nicht gefunden.")
 
         checked_rows=con.execute(
             "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)
         ).fetchall()
         checked={str(x["ingredient"] or "").strip() for x in checked_rows}
-        con.close(); con=None
+        con.close()
+        con=None
 
-        raw_ingredients=str(recipe["ingredients"] or "")
-        all_ingredients=[]
-        for raw in raw_ingredients.splitlines():
+        # Strip headings/separators; only real ingredient lines go to the list.
+        for raw in str(recipe["ingredients"] or "").splitlines():
             line=raw.strip()
-            if not line or re.fullmatch(r"-{3,}",line):
+            if not line:
+                continue
+            if re.fullmatch(r"-{3,}",line):
                 continue
             if re.fullmatch(r"\*\*(.+?)\*\*",line):
                 continue
-            all_ingredients.append(line)
-        ingredients=[x for x in all_ingredients if x not in checked]
+            if line not in checked:
+                ingredients.append(line)
 
-        # A broken/old saved setting must never crash the page.
         settings=load_settings() or {}
         saved_entity=str(settings.get("bring_entity") or "").strip()
 
+        # HA list discovery is optional for rendering the page.
         try:
             rows=ha_todo_entities() or []
-            todo_entities=[
-                {
-                    "entity_id":str((x or {}).get("entity_id") or "").strip(),
-                    "name":str((x or {}).get("name") or (x or {}).get("entity_id") or "").strip()
-                }
-                for x in rows if isinstance(x,dict) and str(x.get("entity_id") or "").startswith("todo.")
-            ]
+            for x in rows:
+                if not isinstance(x,dict):
+                    continue
+                entity_id=str(x.get("entity_id") or "").strip()
+                if not entity_id.startswith("todo."):
+                    continue
+                todo_entities.append({
+                    "entity_id":entity_id,
+                    "name":str(x.get("name") or entity_id).strip()
+                })
         except Exception as exc:
-            todo_entities=[]
             error="Home-Assistant-Listen konnten nicht geladen werden: "+str(exc)
 
         selected_entity=(
             str(request.form.get("bring_entity") or "").strip()
-            if request.method=="POST" else saved_entity
+            if request.method=="POST"
+            else saved_entity
         )
 
-        if request.method=="POST" and not error:
-            valid_ids={x["entity_id"] for x in todo_entities}
-            if not selected_entity:
+        # Do not keep a stale saved entity selected.
+        valid_ids={x["entity_id"] for x in todo_entities}
+        if request.method!="POST" and selected_entity and selected_entity not in valid_ids:
+            selected_entity=""
+
+        if request.method=="POST":
+            if error:
+                pass
+            elif not selected_entity:
                 error="Bitte eine Einkaufsliste auswählen."
             elif selected_entity not in valid_ids:
-                error="Die gewählte Einkaufsliste ist nicht mehr verfügbar. Bitte erneut auswählen."
+                error="Die gewählte Einkaufsliste ist nicht verfügbar. Bitte erneut auswählen."
             elif not ingredients:
                 error="Alle Zutaten sind bereits als vorhanden markiert."
             else:
@@ -1438,24 +1501,41 @@ def recipe_bring():
                     error=str(exc)
 
     except Exception as exc:
-        error=str(exc)
+        error="Bring!-Fehler: "+str(exc)
     finally:
         if con is not None:
-            try: con.close()
-            except Exception: pass
+            try:
+                con.close()
+            except Exception:
+                pass
 
-    # Always render a valid page instead of propagating a server error.
     if recipe is None:
         recipe={"id":rid or 0,"title":"Rezept"}
-    return render_template(
-        "bring.html",
-        recipe=recipe,
-        ingredients=ingredients,
-        error=error,
-        success=success,
-        todo_entities=todo_entities,
-        selected_entity=selected_entity
-    )
+
+    # Even a template problem must no longer become a generic Flask 500 page.
+    try:
+        return render_template(
+            "bring.html",
+            recipe=recipe,
+            ingredients=ingredients,
+            error=error,
+            success=success,
+            todo_entities=todo_entities,
+            selected_entity=selected_entity
+        )
+    except Exception as exc:
+        msg=html.escape(str(exc))
+        back=f"?view=recipe&id={rid or 0}"
+        return (
+            "<!doctype html><html lang='de'><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<body style='font-family:-apple-system,sans-serif;padding:24px'>"
+            "<h1>🛒 Bring!</h1>"
+            "<p>Die Bring!-Ansicht konnte nicht aufgebaut werden.</p>"
+            f"<p><b>Fehler:</b> {msg}</p>"
+            f"<p><a href='{back}'>← Zurück zum Rezept</a></p>"
+            "</body></html>"
+        ), 200
 
 
 def recipe_own_images():
