@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+- Versionsnummer erhöht, damit Home Assistant das Update erkennt
+- enthält den vollständigen Funktionsstand der zuletzt aktualisierten 0.6.0
+- manuelle Metadaten-Trefferauswahl
+- Amazon.de-Suche pro Treffer
+- Zusammenfassungen in der Metadatensuche
+- Genre-Suche inklusive temporärer Anzeige ausgeblendeter Genres
+- Serienbücher werden nur in der Serienansicht angezeigt
+
 ## 0.6.0
 
 - Amazon.de-Suche pro Treffer über ISBN bzw. Titel und Autor hinzugefügt
