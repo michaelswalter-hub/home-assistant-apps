@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS books (
 CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
 CREATE INDEX IF NOT EXISTS idx_books_author ON books(author);
 CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn);
-CREATE INDEX IF NOT EXISTS idx_books_series ON books(series_id, series_index);
 """
 
 class Database:

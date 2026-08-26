@@ -81,7 +81,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.2.0"})
+    return jsonify({"status": "ok", "version": "0.2.1"})
 
 @app.get("/api/books")
 def list_books():

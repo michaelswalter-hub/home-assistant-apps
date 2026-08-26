@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Upgrade-Fehler von 0.1.x behoben (`no such column: series_id`)
+- Serien-Index wird jetzt erst nach der Datenbankmigration angelegt
+- Vorhandene Bücher bleiben erhalten
+
 ## 0.2.0
 
 - Serienverwaltung hinzugefügt
