@@ -343,3 +343,33 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .step-ingredients>small{display:block;color:var(--muted);font-weight:700;margin-bottom:7px}
 .step-ingredient-list{display:flex;flex-wrap:wrap;gap:6px}
 .step-ingredient-list span{display:inline-flex;padding:6px 9px;border-radius:10px;background:var(--bg);border:1px solid var(--border);font-size:13px}
+
+/* 0.5.22 – garantiert anklickbare Plus-Buttons in Einstellungen */
+.settings-add-button{
+  position:relative!important;
+  z-index:5!important;
+  flex:0 0 auto!important;
+  width:36px!important;
+  height:36px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:10px!important;
+  text-decoration:none!important;
+  background:#dff3ff!important;
+  border:1px solid #b9e3f7!important;
+  color:#1779aa!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+}
+.settings-add-button span{font-size:23px!important;line-height:1!important;font-weight:500!important}
+.section-head{position:relative}
+
+/* Kochmodus: Rubriken + Zutaten je Schritt */
+.cook-step-list{display:flex;flex-direction:column;gap:12px}
+.cook-step-card{border-radius:16px!important}
+.cook-step-content{display:block;min-width:0;width:100%}
+.cook-step-content>p{line-height:1.5}
+.cook-ingredient-group{margin-top:9px}
+.cook-ingredient-group>strong{display:block;margin-bottom:6px;color:var(--accent);font-size:13px}
+.cook-ingredient-group+.cook-ingredient-group{padding-top:8px;border-top:1px dashed var(--border)}

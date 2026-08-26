@@ -36,7 +36,7 @@
 <form method="post" class="inline-test"><input type="hidden" name="action" value="test"><button>Verbindung testen</button></form>
 </section>
 <section class="panel">
-<div class="section-head"><div><h2>🏷️ Tags</h2><p class="subtle">Tags erscheinen als farbige Pillen in den Rezepten.</p></div><a class="primary small" href="?view=tag_new">＋ Tag</a></div>
+<div class="section-head"><div><h2>🏷️ Tags</h2><p class="subtle">Tags erscheinen als farbige Pillen in den Rezepten.</p></div><a class="settings-add-button" href="?view=tag_new" aria-label="Tag hinzufügen" title="Tag hinzufügen"><span>＋</span></a></div>
 <div class="settings-tags">
 {% for t in tags %}
 <div class="settings-tag"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span><span><a href="?view=tag_rename&id={{t.id}}">✏️</a> <a href="?view=tag_delete&id={{t.id}}">🗑</a></span></div>
@@ -45,7 +45,7 @@
 </section>
 </div>
 <section class="panel settings-wide">
-<div class="section-head"><div><h2>📚 Kochbücher</h2><p class="subtle">Kochbücher, Farben und KI-Cover verwalten.</p></div><a class="primary small" href="?view=book_new">＋ Kochbuch</a></div>
+<div class="section-head"><div><h2>📚 Kochbücher</h2><p class="subtle">Kochbücher, Farben und KI-Cover verwalten.</p></div><a class="settings-add-button" href="?view=book_new" aria-label="Kochbuch hinzufügen" title="Kochbuch hinzufügen"><span>＋</span></a></div>
 <div class="settings-books">
 {% for b in cookbooks %}
 <div class="settings-book">
@@ -54,9 +54,7 @@
 <div class="settings-book-actions"><a href="?view=book_rename&id={{b.id}}">✏️ Bearbeiten</a><a href="?view=book_cover&id={{b.id}}">✨ Cover</a><a class="danger-link" href="?view=book_delete&id={{b.id}}">🗑</a></div>
 </div>{% else %}<p class="subtle">Noch keine Kochbücher.</p>{% endfor %}
 </div></section>
-<section class="panel settings-wide mobile-more">
-<h2>Weitere Funktionen</h2><div class="more-links"><a href="?view=new">＋ Neues Rezept / Import</a></div>
-</section>
+
 
 <section class="panel settings-wide">
 <div class="section-head"><div><h2>🛒 Standard-Einkaufsliste</h2>

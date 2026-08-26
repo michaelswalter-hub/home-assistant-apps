@@ -1648,35 +1648,69 @@ def ingredient_keywords(line):
             out.append(stem)
     return out
 
-def ingredients_for_step(step, ingredient_text):
-    step_l=str(step or "").lower()
-    step_words=set()
-    for w in re.findall(r"[a-zäöüß]{3,}",step_l):
-        stem=w
-        for suffix in ("ern","en","er","es","e","n","s"):
-            if len(stem)>5 and stem.endswith(suffix):
-                stem=stem[:-len(suffix)]
-                break
-        step_words.add(stem)
+def normalize_match_word(word):
+    stem=str(word or "").lower()
+    for suffix in ("ern","en","er","es","e","n","s"):
+        if len(stem)>5 and stem.endswith(suffix):
+            stem=stem[:-len(suffix)]
+            break
+    return stem
 
-    matches=[]
-    for group in ingredient_groups(ingredient_text):
+def group_keywords(title):
+    text=str(title or "").lower()
+    stop={"für","das","die","den","der","des","zum","zur","einen","eine","ein"}
+    return [normalize_match_word(w) for w in re.findall(r"[a-zäöüß]{3,}",text) if w not in stop]
+
+def ingredients_for_step(step, ingredient_text):
+    """
+    Return grouped ingredient information for one cooking step.
+
+    - If the step explicitly mentions a group heading (e.g. "Dressing"),
+      every ingredient from that group is shown.
+    - Phrases such as "alle Zutaten" use the most recently/clearly mentioned
+      group. If there is only one group, all ingredients from it are shown.
+    - Otherwise ingredients are matched by their names.
+    """
+    step_l=str(step or "").lower()
+    groups=ingredient_groups(ingredient_text)
+    if not groups:
+        return []
+
+    # Explicit group-heading match.
+    matched_groups=[]
+    for group in groups:
+        title=group.get("title","")
+        keys=group_keywords(title)
+        if keys and any(k and k in step_l for k in keys):
+            matched_groups.append(group)
+
+    all_phrase=bool(re.search(
+        r"\b(alle(?:n|r|s)?\s+zutaten|sämtliche(?:n)?\s+zutaten|alles\s+(?:hinzufügen|zugeben|vermengen|mischen))\b",
+        step_l
+    ))
+
+    # If a group is named, "alle Zutaten" means all ingredients of that group.
+    if matched_groups:
+        return [{"title":g.get("title",""),"items":list(g.get("items",[]))} for g in matched_groups]
+
+    # With a single logical group, "alle Zutaten" is unambiguous.
+    nonempty=[g for g in groups if g.get("items")]
+    if all_phrase and len(nonempty)==1:
+        g=nonempty[0]
+        return [{"title":g.get("title",""),"items":list(g.get("items",[]))}]
+
+    step_words={normalize_match_word(w) for w in re.findall(r"[a-zäöüß]{3,}",step_l)}
+    results=[]
+    for group in groups:
+        hits=[]
         for line in group.get("items",[]):
             keys=ingredient_keywords(line)
-            if not keys:
-                continue
-            # A hit on any characteristic ingredient keyword is enough.
-            if any(k in step_words or k in step_l for k in keys):
-                matches.append(line)
+            if keys and any(k in step_words or k in step_l for k in keys):
+                hits.append(line)
+        if hits:
+            results.append({"title":group.get("title",""),"items":hits})
+    return results
 
-    # Keep stable order and remove duplicates.
-    seen=set()
-    unique=[]
-    for x in matches:
-        if x not in seen:
-            seen.add(x)
-            unique.append(x)
-    return unique
 
 def detect_seconds(text):
     t=text.lower()
@@ -1700,7 +1734,7 @@ def cook_mode():
             "number":idx,
             "text":text,
             "seconds":detect_seconds(text),
-            "ingredients":ingredients_for_step(text,r["ingredients"] or "")
+            "ingredient_groups":ingredients_for_step(text,r["ingredients"] or "")
         })
 
     return render_template("cook.html",recipe=r,steps=steps)

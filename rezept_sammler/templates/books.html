@@ -1,7 +1,10 @@
 {% extends "base.html" %}{% block content %}
-<div class="page-head">
-  <div><p class="eyebrow">SAMMLUNG</p><h1>📚 Meine Kochbücher</h1><p class="subtle">Dein digitales Bücherregal.</p></div>
-  <a href="?view=settings">⚙️ Kochbücher verwalten</a>
+<div class="page-head books-page-head">
+  <div>
+    <p class="eyebrow">SAMMLUNG</p>
+    <h1>📚 Meine Kochbücher</h1>
+    <p class="subtle">Dein digitales Bücherregal.</p>
+  </div>
 </div>
 
 <div class="bookshelf">
@@ -28,7 +31,7 @@
 <div class="empty-state">
   <span>📚</span><h2>Noch kein Kochbuch</h2>
   <p>Erstelle dein erstes digitales Kochbuch in den Einstellungen.</p>
-  <a class="primary" href="?view=settings">⚙️ Zu den Einstellungen</a>
+  
 </div>
 {% endfor %}
 </div>
