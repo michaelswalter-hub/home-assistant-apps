@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Umschaltung zwischen Bücher- und Serienansicht
+- Serienansicht mit Cover-Vorschau und Bandliste
+- Serienverwaltung in die Einstellungen hinter ein Zahnrad verschoben
+- Buchmetadaten vollständig bearbeitbar
+- Serie und Bandnummer in die Buchbearbeitung integriert
+- Detailansicht vereinfacht
+
 ## 0.2.1
 
 - Upgrade-Fehler von 0.1.x behoben (`no such column: series_id`)

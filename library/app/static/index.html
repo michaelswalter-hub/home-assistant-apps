@@ -18,16 +18,22 @@
 
   <main>
     <section class="toolbar">
+      <div class="view-switch" role="group" aria-label="Ansicht wählen">
+        <button id="booksViewButton" class="view-button active" type="button">Bücher</button>
+        <button id="seriesViewButton" class="view-button" type="button">Serien</button>
+      </div>
+
       <label class="search">
         <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Titel oder Autor suchen …">
+        <input id="searchInput" type="search" placeholder="Titel, Autor oder Serie suchen …">
       </label>
+
       <div class="toolbar-actions">
         <select id="seriesFilter" class="select" aria-label="Nach Serie filtern">
           <option value="">Alle Serien</option>
         </select>
-        <button id="manageSeriesButton" class="secondary">Serien verwalten</button>
         <div id="bookCount" class="count"></div>
+        <button id="settingsButton" class="icon-button settings-button" aria-label="Einstellungen" title="Einstellungen">⚙</button>
       </div>
     </section>
 
@@ -40,6 +46,7 @@
     </section>
 
     <section id="libraryGrid" class="grid" aria-live="polite"></section>
+    <section id="seriesGrid" class="series-grid hidden" aria-live="polite"></section>
   </main>
 
   <dialog id="detailDialog">
@@ -47,15 +54,21 @@
     <div id="detailContent"></div>
   </dialog>
 
-  <dialog id="seriesDialog">
-    <button id="closeSeriesDialog" class="icon-button close" aria-label="Schließen">×</button>
-    <div class="series-manager">
-      <h2>Serien verwalten</h2>
-      <form id="seriesForm" class="series-form">
-        <input id="seriesName" required maxlength="160" placeholder="Neue Serie, z. B. Harry Potter">
-        <button class="primary" type="submit">Serie anlegen</button>
-      </form>
-      <div id="seriesList" class="series-list"></div>
+  <dialog id="settingsDialog">
+    <button id="closeSettingsDialog" class="icon-button close" aria-label="Schließen">×</button>
+    <div class="settings-panel">
+      <p class="eyebrow">EINSTELLUNGEN</p>
+      <h2>Bibliothek</h2>
+
+      <section class="settings-section">
+        <h3>Serien verwalten</h3>
+        <p class="settings-help">Hier kannst du Serien anlegen, umbenennen und löschen. Bücher ordnest du direkt beim Bearbeiten eines Buches zu.</p>
+        <form id="seriesForm" class="series-form">
+          <input id="seriesName" required maxlength="160" placeholder="Neue Serie, z. B. Harry Potter">
+          <button class="primary" type="submit">Serie anlegen</button>
+        </form>
+        <div id="seriesList" class="series-list"></div>
+      </section>
     </div>
   </dialog>
 

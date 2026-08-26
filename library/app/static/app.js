@@ -1,4 +1,5 @@
 const grid = document.getElementById("libraryGrid");
+const seriesGrid = document.getElementById("seriesGrid");
 const emptyState = document.getElementById("emptyState");
 const bookCount = document.getElementById("bookCount");
 const searchInput = document.getElementById("searchInput");
@@ -12,15 +13,18 @@ const detailContent = document.getElementById("detailContent");
 const closeDialog = document.getElementById("closeDialog");
 const template = document.getElementById("bookTemplate");
 
-const seriesDialog = document.getElementById("seriesDialog");
-const manageSeriesButton = document.getElementById("manageSeriesButton");
-const closeSeriesDialog = document.getElementById("closeSeriesDialog");
+const booksViewButton = document.getElementById("booksViewButton");
+const seriesViewButton = document.getElementById("seriesViewButton");
+const settingsButton = document.getElementById("settingsButton");
+const settingsDialog = document.getElementById("settingsDialog");
+const closeSettingsDialog = document.getElementById("closeSettingsDialog");
 const seriesForm = document.getElementById("seriesForm");
 const seriesName = document.getElementById("seriesName");
 const seriesList = document.getElementById("seriesList");
 
 let books = [];
 let series = [];
+let currentView = "books";
 
 function api(path) {
   return `api/${path}`;
@@ -73,19 +77,40 @@ function updateSeriesFilter() {
   }
 }
 
-function render() {
+function setView(view) {
+  currentView = view;
+  booksViewButton.classList.toggle("active", view === "books");
+  seriesViewButton.classList.toggle("active", view === "series");
+  seriesFilter.classList.toggle("hidden", view === "series");
+  render();
+}
+
+function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
   const selectedSeries = seriesFilter.value;
-  const filtered = books.filter(book =>
+  return books.filter(book =>
     (!query ||
       (book.title || "").toLocaleLowerCase().includes(query) ||
       (book.author || "").toLocaleLowerCase().includes(query) ||
       (book.series_name || "").toLocaleLowerCase().includes(query)) &&
     (!selectedSeries || book.series_id === selectedSeries)
   );
+}
 
-  filtered.sort((a, b) => {
-    if (selectedSeries) {
+function render() {
+  const visibleBooks = filteredBooks();
+
+  if (currentView === "series") {
+    renderSeriesView();
+    return;
+  }
+
+  grid.classList.remove("hidden");
+  seriesGrid.classList.add("hidden");
+  emptyState.classList.toggle("hidden", books.length !== 0);
+
+  visibleBooks.sort((a, b) => {
+    if (seriesFilter.value) {
       const ai = a.series_index ?? Number.MAX_SAFE_INTEGER;
       const bi = b.series_index ?? Number.MAX_SAFE_INTEGER;
       if (ai !== bi) return ai - bi;
@@ -94,10 +119,9 @@ function render() {
   });
 
   grid.innerHTML = "";
-  bookCount.textContent = `${filtered.length} ${filtered.length === 1 ? "Buch" : "Bücher"}`;
-  emptyState.classList.toggle("hidden", books.length !== 0);
+  bookCount.textContent = `${visibleBooks.length} ${visibleBooks.length === 1 ? "Buch" : "Bücher"}`;
 
-  for (const book of filtered) {
+  for (const book of visibleBooks) {
     const node = template.content.cloneNode(true);
     const card = node.querySelector(".book-card");
     const image = node.querySelector(".cover");
@@ -128,6 +152,59 @@ function render() {
   }
 }
 
+function renderSeriesView() {
+  grid.classList.add("hidden");
+  seriesGrid.classList.remove("hidden");
+  emptyState.classList.toggle("hidden", series.length !== 0 || books.length !== 0);
+
+  const query = searchInput.value.trim().toLocaleLowerCase();
+  const visibleSeries = series.filter(item =>
+    !query ||
+    item.name.toLocaleLowerCase().includes(query) ||
+    books.some(book =>
+      book.series_id === item.id &&
+      ((book.title || "").toLocaleLowerCase().includes(query) ||
+       (book.author || "").toLocaleLowerCase().includes(query))
+    )
+  );
+
+  seriesGrid.innerHTML = "";
+  bookCount.textContent = `${visibleSeries.length} ${visibleSeries.length === 1 ? "Serie" : "Serien"}`;
+
+  for (const item of visibleSeries) {
+    const members = books
+      .filter(book => book.series_id === item.id)
+      .sort((a, b) => (a.series_index ?? 999999) - (b.series_index ?? 999999));
+
+    const card = document.createElement("article");
+    card.className = "series-card";
+    card.tabIndex = 0;
+    const covers = members.slice(0, 3).map(book =>
+      `<img src="${api(`books/${book.id}/cover`)}" alt="" onerror="this.outerHTML='<div class=&quot;series-cover-placeholder&quot;>Kein Cover</div>'">`
+    ).join("");
+    const placeholders = Array.from(
+      {length: Math.max(0, 3 - Math.min(3, members.length))},
+      () => `<div class="series-cover-placeholder">Kein Cover</div>`
+    ).join("");
+
+    card.innerHTML = `
+      <div class="series-covers">${covers}${placeholders}</div>
+      <div class="series-card-body">
+        <h2>${esc(item.name)}</h2>
+        <p>${item.book_count} ${item.book_count === 1 ? "Buch" : "Bücher"}</p>
+      </div>
+    `;
+    card.addEventListener("click", () => showSeries(item.id));
+    card.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showSeries(item.id);
+      }
+    });
+    seriesGrid.appendChild(card);
+  }
+}
+
 function seriesOptions(selected) {
   return `<option value="">Keine Serie</option>` + series.map(item =>
     `<option value="${esc(item.id)}" ${item.id === selected ? "selected" : ""}>${esc(item.name)}</option>`
@@ -146,20 +223,16 @@ async function showBook(id) {
         <h2>${esc(book.title)}</h2>
         ${book.subtitle ? `<p class="subtitle">${esc(book.subtitle)}</p>` : ""}
         <p class="detail-author">${esc(book.author || "Autor unbekannt")}</p>
-        <p class="description">${esc(book.description || "Noch keine Zusammenfassung vorhanden.")}</p>
 
-        <div class="series-assignment">
-          <h3>Serie</h3>
-          <div class="series-row">
-            <select id="bookSeries" class="select">${seriesOptions(book.series_id)}</select>
-            <input id="bookSeriesIndex" class="series-index-input" type="number"
-                   min="0.1" step="0.1" placeholder="Band"
-                   value="${book.series_index == null ? "" : esc(formatSeriesIndex(book.series_index))}">
-            <button id="saveBookSeries" class="secondary">Speichern</button>
-          </div>
+        <div class="detail-top-actions">
+          <button class="secondary" id="editBook">Bearbeiten</button>
+          <button class="secondary" id="refreshMetadata">Metadaten erneut suchen</button>
         </div>
 
+        <p class="description">${esc(book.description || "Noch keine Zusammenfassung vorhanden.")}</p>
+
         <dl class="meta">
+          ${book.series_name ? `<dt>Serie</dt><dd>${esc(book.series_name)}${book.series_index ? ` · Band ${esc(formatSeriesIndex(book.series_index))}` : ""}</dd>` : ""}
           <dt>ISBN</dt><dd>${esc(book.isbn || "–")}</dd>
           <dt>Verlag</dt><dd>${esc(book.publisher || "–")}</dd>
           <dt>Erschienen</dt><dd>${esc(book.published_date || "–")}</dd>
@@ -171,32 +244,14 @@ async function showBook(id) {
         <div class="actions">
           <button class="primary" id="shareBook">Teilen / In Dateien sichern</button>
           <a class="secondary" href="${api(`books/${book.id}/download`)}" target="_blank" rel="noopener">Direkter Download</a>
-          <button class="secondary" id="refreshMetadata">Metadaten erneut suchen</button>
         </div>
-        <p class="share-note">Auf iPhone/iPad öffnet „Teilen / In Dateien sichern“ nach Möglichkeit das iOS-Teilen-Menü. Dort kannst du „In Dateien sichern“ wählen.</p>
+        <p class="share-note">Auf iPhone/iPad öffnet „Teilen / In Dateien sichern“ nach Möglichkeit das iOS-Teilen-Menü.</p>
       </div>
     </div>
   `;
   if (!dialog.open) dialog.showModal();
 
-  document.getElementById("saveBookSeries").addEventListener("click", async event => {
-    event.currentTarget.disabled = true;
-    const selected = document.getElementById("bookSeries").value || null;
-    const index = document.getElementById("bookSeriesIndex").value || null;
-    const response = await fetch(api(`books/${book.id}/series`), {
-      method: "PATCH",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({series_id: selected, series_index: index})
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      alert(result.error || "Serie konnte nicht gespeichert werden.");
-      event.currentTarget.disabled = false;
-      return;
-    }
-    await loadData();
-    await showBook(book.id);
-  });
+  document.getElementById("editBook").addEventListener("click", () => showEditBook(book));
 
   document.getElementById("shareBook").addEventListener("click", async event => {
     const button = event.currentTarget;
@@ -210,10 +265,7 @@ async function showBook(id) {
       const file = new File([blob], book.file_name, {type: mime});
 
       if (navigator.share && (!navigator.canShare || navigator.canShare({files: [file]}))) {
-        await navigator.share({
-          files: [file],
-          title: book.title
-        });
+        await navigator.share({files: [file], title: book.title});
       } else {
         const objectUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -227,7 +279,6 @@ async function showBook(id) {
       }
     } catch (error) {
       if (error.name !== "AbortError") {
-        // Last fallback: inline/open response. PDFs can be handled by iOS Quick Look/Safari.
         window.open(api(`books/${book.id}/open`), "_blank");
       }
     } finally {
@@ -249,6 +300,129 @@ async function showBook(id) {
       event.currentTarget.textContent = "Metadaten erneut suchen";
       alert(error.message);
     }
+  });
+}
+
+function showEditBook(book) {
+  detailContent.innerHTML = `
+    <div class="detail">
+      <img class="detail-cover" src="${api(`books/${book.id}/cover`)}" alt="Cover von ${esc(book.title)}"
+           onerror="this.style.visibility='hidden'">
+      <div>
+        <h2>Buch bearbeiten</h2>
+        <form id="editBookForm" class="edit-form">
+          <label>Titel
+            <input name="title" required value="${esc(book.title || "")}">
+          </label>
+
+          <label>Untertitel
+            <input name="subtitle" value="${esc(book.subtitle || "")}">
+          </label>
+
+          <label>Autor
+            <input name="author" value="${esc(book.author || "")}">
+          </label>
+
+          <label>Zusammenfassung
+            <textarea name="description">${esc(book.description || "")}</textarea>
+          </label>
+
+          <div class="edit-grid">
+            <label>ISBN
+              <input name="isbn" value="${esc(book.isbn || "")}">
+            </label>
+            <label>Verlag
+              <input name="publisher" value="${esc(book.publisher || "")}">
+            </label>
+            <label>Erscheinungsdatum
+              <input name="published_date" value="${esc(book.published_date || "")}">
+            </label>
+            <label>Sprache
+              <input name="language" value="${esc(book.language || "")}">
+            </label>
+          </div>
+
+          <div class="edit-grid">
+            <label>Serie
+              <select name="series_id">${seriesOptions(book.series_id)}</select>
+            </label>
+            <label>Band
+              <input name="series_index" type="number" min="0.1" step="0.1"
+                     value="${book.series_index == null ? "" : esc(formatSeriesIndex(book.series_index))}">
+            </label>
+          </div>
+
+          <div class="edit-actions">
+            <button class="primary" type="submit">Änderungen speichern</button>
+            <button class="secondary" type="button" id="cancelEdit">Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("cancelEdit").addEventListener("click", () => showBook(book.id));
+  document.getElementById("editBookForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+
+    const response = await fetch(api(`books/${book.id}`), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || "Änderungen konnten nicht gespeichert werden.");
+      return;
+    }
+
+    await loadData();
+    await showBook(book.id);
+  });
+}
+
+function showSeries(seriesId) {
+  const item = series.find(entry => entry.id === seriesId);
+  if (!item) return;
+
+  const members = books
+    .filter(book => book.series_id === seriesId)
+    .sort((a, b) => {
+      const ai = a.series_index ?? 999999;
+      const bi = b.series_index ?? 999999;
+      if (ai !== bi) return ai - bi;
+      return (a.title || "").localeCompare(b.title || "", "de");
+    });
+
+  detailContent.innerHTML = `
+    <div class="detail">
+      <div></div>
+      <div>
+        <div class="series-detail-header">
+          <p class="eyebrow">SERIE</p>
+          <h2>${esc(item.name)}</h2>
+          <p class="subtitle">${members.length} ${members.length === 1 ? "Buch" : "Bücher"}</p>
+        </div>
+        <div class="series-detail-list">
+          ${members.length ? members.map(book => `
+            <div class="series-detail-book" data-book-id="${esc(book.id)}">
+              <img src="${api(`books/${book.id}/cover`)}" alt="">
+              <div>
+                <h4>${book.series_index ? `Band ${esc(formatSeriesIndex(book.series_index))}: ` : ""}${esc(book.title)}</h4>
+                <p>${esc(book.author || "Autor unbekannt")}</p>
+              </div>
+            </div>
+          `).join("") : "<p>Dieser Serie sind noch keine Bücher zugeordnet.</p>"}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (!dialog.open) dialog.showModal();
+  detailContent.querySelectorAll(".series-detail-book").forEach(row => {
+    row.addEventListener("click", () => showBook(row.dataset.bookId));
   });
 }
 
@@ -321,18 +495,21 @@ emptyUploadButton.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => uploadFiles([...fileInput.files]));
 searchInput.addEventListener("input", render);
 seriesFilter.addEventListener("change", render);
+booksViewButton.addEventListener("click", () => setView("books"));
+seriesViewButton.addEventListener("click", () => setView("series"));
+
 closeDialog.addEventListener("click", () => dialog.close());
 dialog.addEventListener("click", event => {
   if (event.target === dialog) dialog.close();
 });
 
-manageSeriesButton.addEventListener("click", () => {
+settingsButton.addEventListener("click", () => {
   renderSeriesManager();
-  seriesDialog.showModal();
+  settingsDialog.showModal();
 });
-closeSeriesDialog.addEventListener("click", () => seriesDialog.close());
-seriesDialog.addEventListener("click", event => {
-  if (event.target === seriesDialog) seriesDialog.close();
+closeSettingsDialog.addEventListener("click", () => settingsDialog.close());
+settingsDialog.addEventListener("click", event => {
+  if (event.target === settingsDialog) settingsDialog.close();
 });
 seriesForm.addEventListener("submit", async event => {
   event.preventDefault();

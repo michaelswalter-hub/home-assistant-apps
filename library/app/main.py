@@ -81,7 +81,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.2.1"})
+    return jsonify({"status": "ok", "version": "0.3.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -165,6 +165,60 @@ def upload_book():
         shutil.rmtree(book_dir, ignore_errors=True)
         app.logger.exception("Upload fehlgeschlagen")
         return jsonify({"error": f"Das Buch konnte nicht verarbeitet werden: {exc}"}), 500
+
+
+@app.patch("/api/books/<book_id>")
+def edit_book(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    allowed = {
+        "title",
+        "subtitle",
+        "author",
+        "description",
+        "isbn",
+        "publisher",
+        "published_date",
+        "language",
+    }
+
+    values = {}
+    for key in allowed:
+        if key in data:
+            value = data.get(key)
+            if isinstance(value, str):
+                value = value.strip()
+            if key == "title" and not value:
+                return jsonify({"error": "Der Titel darf nicht leer sein."}), 400
+            values[key] = value or None
+
+    if "series_id" in data or "series_index" in data:
+        series_id = data.get("series_id") or None
+        series_index = data.get("series_index")
+
+        if series_id and not db.get_series(series_id):
+            return jsonify({"error": "Serie nicht gefunden."}), 404
+
+        if series_index in ("", None):
+            series_index = None
+        else:
+            try:
+                series_index = float(series_index)
+                if series_index <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                return jsonify({"error": "Die Bandnummer muss eine positive Zahl sein."}), 400
+
+        values["series_id"] = series_id
+        values["series_index"] = series_index if series_id else None
+
+    values["updated_at"] = utcnow()
+    db.update_book(book_id, values)
+    return jsonify(public_book(db.get_book(book_id)))
+
 
 @app.post("/api/books/<book_id>/refresh-metadata")
 def refresh_metadata(book_id: str):

@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.2.0
+## Version 0.3.0
 
 Die erste Version unterstützt:
 
@@ -114,3 +114,14 @@ docker run --rm \
 ```
 
 Danach ist die Testoberfläche unter Port `8099` erreichbar.
+
+
+## Oberfläche ab 0.3.0
+
+- Umschalter zwischen **Bücher** und **Serien**
+- Serienansicht mit bis zu drei Cover-Vorschaubildern
+- Klick auf eine Serie zeigt alle Bände in Reihenfolge
+- Einstellungen über das Zahnrad
+- Serienverwaltung befindet sich in den Einstellungen
+- Buchmetadaten können in der Detailansicht über **Bearbeiten** geändert werden
+- Serie und Bandnummer sind Bestandteil der Buchbearbeitung
