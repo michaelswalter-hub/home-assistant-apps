@@ -231,53 +231,89 @@ def _get_json(url: str, params: dict | None = None) -> dict:
     response.raise_for_status()
     return response.json()
 
-def _google_books(query: str, language: str = "de") -> dict:
+
+def _normalize_title(value: str | None) -> str:
+    if not value:
+        return ""
+    value = value.casefold()
+    value = re.sub(r"[^\w\s]", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+def _tokens(value: str | None) -> set[str]:
+    return {part for part in _normalize_title(value).split() if len(part) > 1}
+
+def _match_score(candidate: dict, title: str | None, author: str | None) -> float:
+    score = 0.0
+    wanted_title = _tokens(title)
+    found_title = _tokens(candidate.get("title"))
+    if wanted_title:
+        score += (len(wanted_title & found_title) / max(1, len(wanted_title))) * 70
+
+    wanted_author = _tokens(author)
+    found_author = _tokens(candidate.get("author"))
+    if wanted_author:
+        score += (len(wanted_author & found_author) / max(1, len(wanted_author))) * 30
+
+    if candidate.get("isbn"):
+        score += 5
+    return score
+
+def _google_books_candidates(query: str, language: str = "de") -> list[dict]:
     try:
         data = _get_json(
             "https://www.googleapis.com/books/v1/volumes",
-            {"q": query, "maxResults": 5, "printType": "books", "hl": language},
+            {"q": query, "maxResults": 10, "printType": "books", "hl": language},
         )
-        items = data.get("items") or []
-        if not items:
-            return {}
-        info = items[0].get("volumeInfo", {})
-        identifiers = info.get("industryIdentifiers") or []
-        isbn = None
-        for identifier in identifiers:
-            candidate = normalize_isbn(identifier.get("identifier"))
-            if candidate and len(candidate) == 13:
-                isbn = candidate
-                break
-            if candidate and not isbn:
-                isbn = candidate
+        results = []
+        for item in data.get("items") or []:
+            info = item.get("volumeInfo", {})
+            identifiers = info.get("industryIdentifiers") or []
+            isbn = None
+            for identifier in identifiers:
+                candidate = normalize_isbn(identifier.get("identifier"))
+                if candidate and len(candidate) == 13:
+                    isbn = candidate
+                    break
+                if candidate and not isbn:
+                    isbn = candidate
 
-        image_links = info.get("imageLinks") or {}
-        cover = (
-            image_links.get("extraLarge")
-            or image_links.get("large")
-            or image_links.get("medium")
-            or image_links.get("thumbnail")
-            or image_links.get("smallThumbnail")
-        )
-        if cover:
-            cover = cover.replace("http://", "https://")
+            image_links = info.get("imageLinks") or {}
+            cover = (
+                image_links.get("extraLarge")
+                or image_links.get("large")
+                or image_links.get("medium")
+                or image_links.get("thumbnail")
+                or image_links.get("smallThumbnail")
+            )
+            if cover:
+                cover = cover.replace("http://", "https://")
 
-        return {
-            "title": _clean_text(info.get("title")),
-            "subtitle": _clean_text(info.get("subtitle")),
-            "author": ", ".join(info.get("authors") or []) or None,
-            "description": _clean_text(info.get("description")),
-            "isbn": isbn,
-            "publisher": _clean_text(info.get("publisher")),
-            "published_date": _clean_text(info.get("publishedDate")),
-            "language": _clean_text(info.get("language")),
-            "cover_url": cover,
-            "metadata_source": "Google Books",
-        }
+            genres = []
+            for value in info.get("categories") or []:
+                for part in re.split(r"[/>,;]", value):
+                    cleaned = _clean_text(part)
+                    if cleaned and cleaned.casefold() not in {g.casefold() for g in genres}:
+                        genres.append(cleaned)
+
+            results.append({
+                "title": _clean_text(info.get("title")),
+                "subtitle": _clean_text(info.get("subtitle")),
+                "author": ", ".join(info.get("authors") or []) or None,
+                "description": _clean_text(info.get("description")),
+                "isbn": isbn,
+                "publisher": _clean_text(info.get("publisher")),
+                "published_date": _clean_text(info.get("publishedDate")),
+                "language": _clean_text(info.get("language")),
+                "genres": genres,
+                "cover_url": cover,
+                "metadata_source": "Google Books",
+            })
+        return results
     except Exception:
-        return {}
+        return []
 
-def _open_library(isbn: str | None, title: str | None, author: str | None) -> dict:
+def _open_library_candidates(isbn: str | None, title: str | None, author: str | None) -> list[dict]:
+    results = []
     try:
         if isbn:
             data = _get_json(
@@ -286,81 +322,122 @@ def _open_library(isbn: str | None, title: str | None, author: str | None) -> di
             )
             record = data.get(f"ISBN:{isbn}") or {}
             if record:
-                return {
+                genres = []
+                for s in record.get("subjects", [])[:12]:
+                    name = _clean_text(s.get("name")) if isinstance(s, dict) else None
+                    if name and name.casefold() not in {g.casefold() for g in genres}:
+                        genres.append(name)
+                results.append({
                     "title": _clean_text(record.get("title")),
                     "author": ", ".join(a.get("name", "") for a in record.get("authors", []) if a.get("name")) or None,
                     "isbn": isbn,
                     "publisher": ", ".join(p.get("name", "") for p in record.get("publishers", []) if p.get("name")) or None,
                     "published_date": _clean_text(record.get("publish_date")),
+                    "genres": genres,
                     "cover_url": (record.get("cover") or {}).get("large") or (record.get("cover") or {}).get("medium"),
                     "metadata_source": "Open Library",
-                }
+                })
 
-        params = {"limit": 1}
+        params = {"limit": 10}
         if title:
             params["title"] = title
         if author:
             params["author"] = author
         if len(params) == 1:
-            return {}
-        data = _get_json("https://openlibrary.org/search.json", params)
-        docs = data.get("docs") or []
-        if not docs:
-            return {}
-        doc = docs[0]
-        isbn_values = doc.get("isbn") or []
-        found_isbn = next((normalize_isbn(v) for v in isbn_values if normalize_isbn(v)), None)
-        cover_id = doc.get("cover_i")
-        return {
-            "title": _clean_text(doc.get("title")),
-            "author": ", ".join(doc.get("author_name") or []) or None,
-            "isbn": found_isbn,
-            "publisher": ", ".join((doc.get("publisher") or [])[:3]) or None,
-            "published_date": str(doc.get("first_publish_year")) if doc.get("first_publish_year") else None,
-            "language": (doc.get("language") or [None])[0],
-            "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else None,
-            "metadata_source": "Open Library",
-        }
-    except Exception:
-        return {}
+            return results
 
-def enrich_metadata(local: dict, language: str = "de") -> dict:
+        data = _get_json("https://openlibrary.org/search.json", params)
+        for doc in data.get("docs") or []:
+            isbn_values = doc.get("isbn") or []
+            found_isbn = None
+            for value in isbn_values:
+                candidate = normalize_isbn(value)
+                if candidate and len(candidate) == 13:
+                    found_isbn = candidate
+                    break
+                if candidate and not found_isbn:
+                    found_isbn = candidate
+
+            cover_id = doc.get("cover_i")
+            genres = []
+            for value in (doc.get("subject") or [])[:12]:
+                cleaned = _clean_text(value)
+                if cleaned and cleaned.casefold() not in {g.casefold() for g in genres}:
+                    genres.append(cleaned)
+
+            results.append({
+                "title": _clean_text(doc.get("title")),
+                "author": ", ".join(doc.get("author_name") or []) or None,
+                "isbn": found_isbn,
+                "publisher": ", ".join((doc.get("publisher") or [])[:3]) or None,
+                "published_date": str(doc.get("first_publish_year")) if doc.get("first_publish_year") else None,
+                "language": (doc.get("language") or [None])[0],
+                "genres": genres,
+                "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else None,
+                "metadata_source": "Open Library",
+            })
+        return results
+    except Exception:
+        return results
+
+def _best_candidate(candidates: list[dict], title: str | None, author: str | None) -> dict:
+    if not candidates:
+        return {}
+    ranked = sorted(candidates, key=lambda c: _match_score(c, title, author), reverse=True)
+    best = ranked[0]
+    if title and _match_score(best, title, author) < 35:
+        return {}
+    return best
+
+def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = False) -> dict:
     title = local.get("title")
     author = local.get("author")
     isbn = local.get("isbn")
+    candidates = []
 
-    sources = []
     if isbn:
-        google = _google_books(f"isbn:{isbn}", language)
-        openlib = _open_library(isbn, title, author)
+        candidates.extend(_google_books_candidates(f"isbn:{isbn}", language))
+        candidates.extend(_open_library_candidates(isbn, title, author))
     else:
-        query_parts = []
-        if title:
-            query_parts.append(f'intitle:"{title}"')
-        if author:
-            query_parts.append(f'inauthor:"{author}"')
-        google = _google_books(" ".join(query_parts), language) if query_parts else {}
-        openlib = _open_library(None, title, author)
+        queries = []
+        if title and author:
+            queries.extend([f"intitle:{title} inauthor:{author}", f"{title} {author}"])
+        elif title:
+            queries.extend([f"intitle:{title}", title])
+        elif author:
+            queries.append(f"inauthor:{author}")
 
+        seen = set()
+        for query in queries:
+            if query not in seen:
+                seen.add(query)
+                candidates.extend(_google_books_candidates(query, language))
+        candidates.extend(_open_library_candidates(None, title, author))
+
+    best = _best_candidate(candidates, title, author)
     merged = dict(local)
-    # Local metadata has priority. Online sources only fill gaps.
-    for source in (google, openlib):
-        if source:
-            source_name = source.get("metadata_source")
-            if source_name:
-                sources.append(source_name)
-            for key, value in source.items():
-                if key in {"metadata_source", "cover_url"}:
-                    continue
-                if value and not merged.get(key):
-                    merged[key] = value
-            if source.get("cover_url") and not merged.get("cover_url"):
-                merged["cover_url"] = source["cover_url"]
 
-    if sources:
-        merged["metadata_source"] = " + ".join(dict.fromkeys(sources))
+    if best:
+        for key, value in best.items():
+            if key in {"metadata_source", "cover_url"}:
+                continue
+            if key == "genres":
+                combined = []
+                for genre in [*(merged.get("genres") or []), *(value or [])]:
+                    if genre and genre.casefold() not in {g.casefold() for g in combined}:
+                        combined.append(genre)
+                if combined:
+                    merged["genres"] = combined
+                continue
+            if value and not merged.get(key):
+                merged[key] = value
+
+        if best.get("cover_url") and not merged.get("cover_url"):
+            merged["cover_url"] = best["cover_url"]
+        merged["metadata_source"] = best.get("metadata_source") or "Online"
     elif local:
-        merged["metadata_source"] = "Datei"
+        merged["metadata_source"] = local.get("metadata_source") or "Datei"
+
     return merged
 
 def download_cover(url: str, book_dir: Path) -> str | None:

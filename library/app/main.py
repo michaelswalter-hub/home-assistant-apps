@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -63,6 +64,7 @@ def public_book(book: dict) -> dict:
         "file_name": book["file_name"],
         "file_size": book["file_size"],
         "metadata_source": book.get("metadata_source"),
+        "genres": db.get_book_genres(book["id"]),
         "series_id": book.get("series_id"),
         "series_name": book.get("series_name"),
         "series_index": book.get("series_index"),
@@ -81,7 +83,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.3.0"})
+    return jsonify({"status": "ok", "version": "0.5.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -154,6 +156,7 @@ def upload_book():
             "cover_path": cover_path,
             "sha256": sha256,
             "metadata_source": enriched.get("metadata_source") or "Datei",
+            "genres": None,
             "series_id": None,
             "series_index": None,
             "created_at": now,
@@ -195,6 +198,27 @@ def edit_book(book_id: str):
                 return jsonify({"error": "Der Titel darf nicht leer sein."}), 400
             values[key] = value or None
 
+    if "genres" in data:
+        raw_genres = data.get("genres")
+        if isinstance(raw_genres, str):
+            raw_genres = re.split(r"[,;\n]+", raw_genres)
+        if not isinstance(raw_genres, list):
+            return jsonify({"error": "Genres müssen als Liste oder Text angegeben werden."}), 400
+        genres = []
+        for genre in raw_genres:
+            genre = str(genre or "").strip()
+            if genre and genre.casefold() not in {g.casefold() for g in genres}:
+                genres.append(genre)
+        values["genres"] = json.dumps(genres, ensure_ascii=False)
+
+    genre_ids = None
+    if "genre_ids" in data:
+        genre_ids = data.get("genre_ids") or []
+        if not isinstance(genre_ids, list):
+            return jsonify({"error": "genre_ids muss eine Liste sein."}), 400
+        valid_ids = {genre["id"] for genre in db.list_genres()}
+        genre_ids = [str(gid) for gid in genre_ids if str(gid) in valid_ids]
+
     if "series_id" in data or "series_index" in data:
         series_id = data.get("series_id") or None
         series_index = data.get("series_index")
@@ -217,6 +241,8 @@ def edit_book(book_id: str):
 
     values["updated_at"] = utcnow()
     db.update_book(book_id, values)
+    if genre_ids is not None:
+        db.set_book_genres(book_id, genre_ids)
     return jsonify(public_book(db.get_book(book_id)))
 
 
@@ -236,7 +262,7 @@ def refresh_metadata(book_id: str):
         "published_date": book.get("published_date"),
         "language": book.get("language"),
     }
-    enriched = enrich_metadata(current, METADATA_LANGUAGE)
+    enriched = enrich_metadata(current, METADATA_LANGUAGE, force_lookup=True)
 
     values = {}
     filename_title = title_from_filename(book["file_name"])
@@ -310,6 +336,74 @@ def open_book(book_id: str):
     )
     response.headers["Cache-Control"] = "private, no-store"
     return response
+
+
+@app.get("/api/genres")
+def list_genres():
+    return jsonify(db.list_genres())
+
+@app.post("/api/genres")
+def create_genre():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Bitte einen Genre-Namen angeben."}), 400
+    now = utcnow()
+    genre = {
+        "id": uuid4().hex,
+        "name": name,
+        "hidden": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    try:
+        db.create_genre(genre)
+    except Exception as exc:
+        if "UNIQUE constraint failed" in str(exc):
+            return jsonify({"error": "Dieses Genre existiert bereits."}), 409
+        raise
+    return jsonify(db.get_genre(genre["id"])), 201
+
+@app.patch("/api/genres/<genre_id>")
+def edit_genre(genre_id: str):
+    current = db.get_genre(genre_id)
+    if not current:
+        return jsonify({"error": "Genre nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    values = {"updated_at": utcnow()}
+
+    if "name" in data:
+        name = str(data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Der Genre-Name darf nicht leer sein."}), 400
+        values["name"] = name
+
+    if "hidden" in data:
+        values["hidden"] = bool(data.get("hidden"))
+
+    try:
+        db.update_genre(genre_id, values)
+    except Exception as exc:
+        if "UNIQUE constraint failed" in str(exc):
+            return jsonify({"error": "Dieses Genre existiert bereits."}), 409
+        raise
+    return jsonify(db.get_genre(genre_id))
+
+@app.delete("/api/genres/<genre_id>")
+def remove_genre(genre_id: str):
+    if not db.get_genre(genre_id):
+        return jsonify({"error": "Genre nicht gefunden."}), 404
+    db.delete_genre(genre_id)
+    return "", 204
+
+@app.get("/api/settings")
+def get_settings():
+    return jsonify({})
+
+@app.patch("/api/settings")
+def update_settings():
+    return jsonify({})
 
 @app.get("/api/series")
 def list_series():

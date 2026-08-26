@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.3.0
+## Version 0.5.0
 
 Die erste Version unterstützt:
 
@@ -125,3 +125,25 @@ Danach ist die Testoberfläche unter Port `8099` erreichbar.
 - Serienverwaltung befindet sich in den Einstellungen
 - Buchmetadaten können in der Detailansicht über **Bearbeiten** geändert werden
 - Serie und Bandnummer sind Bestandteil der Buchbearbeitung
+
+
+## Neu in 0.4.0
+
+- „Alle Serien“ aus der Bücherübersicht entfernt
+- robustere Metadatensuche über Titel + Autor und mehrere Treffer
+- fehlende ISBN wird gezielt ergänzt, wenn ein ausreichend passender Treffer gefunden wird
+- Genres aus Online-Metadaten
+- Genres in der Buchbearbeitung editierbar
+- Genres können in den Einstellungen ausgeblendet werden
+
+
+## Genres ab 0.5.0
+
+Genres werden jetzt ausschließlich in den Einstellungen verwaltet:
+
+- Genres selbst anlegen
+- Genres umbenennen
+- Genres löschen
+- pro Genre festlegen, ob zugehörige Bücher in der Übersicht ausgeblendet werden
+- ein Buch kann mehreren Genres zugeordnet werden
+- Genre-Zuordnung erfolgt in „Buch bearbeiten“

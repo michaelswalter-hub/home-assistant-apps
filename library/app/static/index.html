@@ -29,9 +29,6 @@
       </label>
 
       <div class="toolbar-actions">
-        <select id="seriesFilter" class="select" aria-label="Nach Serie filtern">
-          <option value="">Alle Serien</option>
-        </select>
         <div id="bookCount" class="count"></div>
         <button id="settingsButton" class="icon-button settings-button" aria-label="Einstellungen" title="Einstellungen">⚙</button>
       </div>
@@ -68,6 +65,16 @@
           <button class="primary" type="submit">Serie anlegen</button>
         </form>
         <div id="seriesList" class="series-list"></div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Genres verwalten</h3>
+        <p class="settings-help">Lege hier deine Genres an. Mit „Ausblenden“ verschwinden alle Bücher dieses Genres aus der Bücherübersicht.</p>
+        <form id="genreForm" class="series-form">
+          <input id="genreName" required maxlength="100" placeholder="Neues Genre, z. B. Fantasy">
+          <button class="primary" type="submit">Genre anlegen</button>
+        </form>
+        <div id="genreList" class="series-list"></div>
       </section>
     </div>
   </dialog>

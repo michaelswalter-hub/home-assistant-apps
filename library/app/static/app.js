@@ -3,7 +3,6 @@ const seriesGrid = document.getElementById("seriesGrid");
 const emptyState = document.getElementById("emptyState");
 const bookCount = document.getElementById("bookCount");
 const searchInput = document.getElementById("searchInput");
-const seriesFilter = document.getElementById("seriesFilter");
 const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
 const emptyUploadButton = document.getElementById("emptyUploadButton");
@@ -21,9 +20,13 @@ const closeSettingsDialog = document.getElementById("closeSettingsDialog");
 const seriesForm = document.getElementById("seriesForm");
 const seriesName = document.getElementById("seriesName");
 const seriesList = document.getElementById("seriesList");
+const genreForm = document.getElementById("genreForm");
+const genreName = document.getElementById("genreName");
+const genreList = document.getElementById("genreList");
 
 let books = [];
 let series = [];
+let genres = [];
 let currentView = "books";
 
 function api(path) {
@@ -56,44 +59,43 @@ function esc(value) {
 }
 
 async function loadData() {
-  const [bookResponse, seriesResponse] = await Promise.all([
+  const [bookResponse, seriesResponse, genreResponse] = await Promise.all([
     fetch(api("books")),
-    fetch(api("series"))
+    fetch(api("series")),
+    fetch(api("genres"))
   ]);
   books = await bookResponse.json();
   series = await seriesResponse.json();
-  updateSeriesFilter();
+  genres = await genreResponse.json();
   render();
 }
 
-function updateSeriesFilter() {
-  const current = seriesFilter.value;
-  seriesFilter.innerHTML = `<option value="">Alle Serien</option>` +
-    series.map(item =>
-      `<option value="${esc(item.id)}">${esc(item.name)} (${item.book_count})</option>`
-    ).join("");
-  if ([...seriesFilter.options].some(o => o.value === current)) {
-    seriesFilter.value = current;
-  }
+function bookIsHidden(book) {
+  return (book.genres || []).some(genre => Boolean(genre.hidden));
+}
+
+function visibleBookGenres(book) {
+  return (book.genres || []).filter(genre => !genre.hidden);
 }
 
 function setView(view) {
   currentView = view;
   booksViewButton.classList.toggle("active", view === "books");
   seriesViewButton.classList.toggle("active", view === "series");
-  seriesFilter.classList.toggle("hidden", view === "series");
   render();
 }
 
 function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
-  const selectedSeries = seriesFilter.value;
   return books.filter(book =>
-    (!query ||
+    !bookIsHidden(book) &&
+    (
+      !query ||
       (book.title || "").toLocaleLowerCase().includes(query) ||
       (book.author || "").toLocaleLowerCase().includes(query) ||
-      (book.series_name || "").toLocaleLowerCase().includes(query)) &&
-    (!selectedSeries || book.series_id === selectedSeries)
+      (book.series_name || "").toLocaleLowerCase().includes(query) ||
+      visibleBookGenres(book).some(g => String(g.name).toLocaleLowerCase().includes(query))
+    )
   );
 }
 
@@ -109,14 +111,9 @@ function render() {
   seriesGrid.classList.add("hidden");
   emptyState.classList.toggle("hidden", books.length !== 0);
 
-  visibleBooks.sort((a, b) => {
-    if (seriesFilter.value) {
-      const ai = a.series_index ?? Number.MAX_SAFE_INTEGER;
-      const bi = b.series_index ?? Number.MAX_SAFE_INTEGER;
-      if (ai !== bi) return ai - bi;
-    }
-    return (a.title || "").localeCompare(b.title || "", "de", {sensitivity: "base"});
-  });
+  visibleBooks.sort((a, b) =>
+    (a.title || "").localeCompare(b.title || "", "de", {sensitivity: "base"})
+  );
 
   grid.innerHTML = "";
   bookCount.textContent = `${visibleBooks.length} ${visibleBooks.length === 1 ? "Buch" : "Bücher"}`;
@@ -162,7 +159,7 @@ function renderSeriesView() {
     !query ||
     item.name.toLocaleLowerCase().includes(query) ||
     books.some(book =>
-      book.series_id === item.id &&
+      book.series_id === item.id && !bookIsHidden(book) &&
       ((book.title || "").toLocaleLowerCase().includes(query) ||
        (book.author || "").toLocaleLowerCase().includes(query))
     )
@@ -173,7 +170,7 @@ function renderSeriesView() {
 
   for (const item of visibleSeries) {
     const members = books
-      .filter(book => book.series_id === item.id)
+      .filter(book => book.series_id === item.id && !bookIsHidden(book))
       .sort((a, b) => (a.series_index ?? 999999) - (b.series_index ?? 999999));
 
     const card = document.createElement("article");
@@ -223,6 +220,7 @@ async function showBook(id) {
         <h2>${esc(book.title)}</h2>
         ${book.subtitle ? `<p class="subtitle">${esc(book.subtitle)}</p>` : ""}
         <p class="detail-author">${esc(book.author || "Autor unbekannt")}</p>
+        ${visibleBookGenres(book).length ? `<div class="genre-chips">${visibleBookGenres(book).map(g => `<span class="genre-chip">${esc(g.name)}</span>`).join("")}</div>` : ""}
 
         <div class="detail-top-actions">
           <button class="secondary" id="editBook">Bearbeiten</button>
@@ -327,6 +325,19 @@ function showEditBook(book) {
             <textarea name="description">${esc(book.description || "")}</textarea>
           </label>
 
+          <fieldset class="genre-picker">
+            <legend>Genres</legend>
+            <div class="genre-picker-list">
+              ${genres.length ? genres.map(genre => `
+                <label class="genre-pick">
+                  <input type="checkbox" name="genre_ids" value="${esc(genre.id)}"
+                    ${(book.genres || []).some(bg => bg.id === genre.id) ? "checked" : ""}>
+                  <span>${esc(genre.name)}${genre.hidden ? " (ausgeblendet)" : ""}</span>
+                </label>
+              `).join("") : `<p>Noch keine Genres angelegt. Du kannst sie über das Zahnrad in den Einstellungen erstellen.</p>`}
+            </div>
+          </fieldset>
+
           <div class="edit-grid">
             <label>ISBN
               <input name="isbn" value="${esc(book.isbn || "")}">
@@ -366,6 +377,7 @@ function showEditBook(book) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries());
+    payload.genre_ids = form.getAll("genre_ids");
 
     const response = await fetch(api(`books/${book.id}`), {
       method: "PATCH",
@@ -462,6 +474,68 @@ function renderSeriesManager() {
   }
 }
 
+
+function renderGenreManager() {
+  const container = document.getElementById("genreList");
+  container.innerHTML = genres.length ? "" : "<p>Noch keine Genres angelegt.</p>";
+
+  for (const genre of genres) {
+    const row = document.createElement("div");
+    row.className = "series-item genre-manager-item";
+    row.innerHTML = `
+      <input class="series-edit-name genre-edit-name" value="${esc(genre.name)}" maxlength="100">
+      <label class="genre-hide-toggle" title="Bücher dieses Genres in der Übersicht ausblenden">
+        <input type="checkbox" class="genre-hidden" ${genre.hidden ? "checked" : ""}>
+        <span>Ausblenden</span>
+      </label>
+      <small>${genre.book_count} ${genre.book_count === 1 ? "Buch" : "Bücher"}</small>
+      <div>
+        <button class="secondary save-genre">Speichern</button>
+        <button class="danger delete-genre">Löschen</button>
+      </div>
+    `;
+
+    row.querySelector(".save-genre").addEventListener("click", async () => {
+      const name = row.querySelector(".genre-edit-name").value.trim();
+      const hidden = row.querySelector(".genre-hidden").checked;
+      const response = await fetch(api(`genres/${genre.id}`), {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({name, hidden})
+      });
+      const result = await response.json();
+      if (!response.ok) return alert(result.error || "Genre konnte nicht gespeichert werden.");
+      await loadData();
+      renderGenreManager();
+    });
+
+    row.querySelector(".genre-hidden").addEventListener("change", async event => {
+      const response = await fetch(api(`genres/${genre.id}`), {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({hidden: event.target.checked})
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        event.target.checked = !event.target.checked;
+        return alert(result.error || "Einstellung konnte nicht gespeichert werden.");
+      }
+      await loadData();
+      renderGenreManager();
+    });
+
+    row.querySelector(".delete-genre").addEventListener("click", async () => {
+      if (!confirm(`Genre „${genre.name}“ löschen? Die Bücher bleiben erhalten.`)) return;
+      const response = await fetch(api(`genres/${genre.id}`), {method: "DELETE"});
+      if (!response.ok) return alert("Genre konnte nicht gelöscht werden.");
+      await loadData();
+      renderGenreManager();
+    });
+
+    container.appendChild(row);
+  }
+}
+
 async function uploadFiles(files) {
   if (!files.length) return;
   uploadStatus.classList.remove("hidden", "error");
@@ -494,7 +568,6 @@ uploadButton.addEventListener("click", () => fileInput.click());
 emptyUploadButton.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => uploadFiles([...fileInput.files]));
 searchInput.addEventListener("input", render);
-seriesFilter.addEventListener("change", render);
 booksViewButton.addEventListener("click", () => setView("books"));
 seriesViewButton.addEventListener("click", () => setView("series"));
 
@@ -505,6 +578,7 @@ dialog.addEventListener("click", event => {
 
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();
+  renderGenreManager();
   settingsDialog.showModal();
 });
 closeSettingsDialog.addEventListener("click", () => settingsDialog.close());
@@ -525,6 +599,23 @@ seriesForm.addEventListener("submit", async event => {
   seriesName.value = "";
   await loadData();
   renderSeriesManager();
+});
+
+
+genreForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const name = genreName.value.trim();
+  if (!name) return;
+  const response = await fetch(api("genres"), {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({name})
+  });
+  const result = await response.json();
+  if (!response.ok) return alert(result.error || "Genre konnte nicht angelegt werden.");
+  genreName.value = "";
+  await loadData();
+  renderGenreManager();
 });
 
 loadData().catch(error => {

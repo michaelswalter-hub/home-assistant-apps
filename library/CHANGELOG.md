@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0
+
+- zentrale Genre-Verwaltung in den Einstellungen
+- Genres können angelegt, umbenannt und gelöscht werden
+- Genres können als ausgeblendet markiert werden
+- Bücher mit mindestens einem ausgeblendeten Genre verschwinden aus der Übersicht
+- Bücher können mehreren Genres zugeordnet werden
+- Genre-Zuordnung in die Buchbearbeitung integriert
+- automatische Online-Genres werden nicht mehr als eigene Kategorien übernommen
+
+## 0.4.0
+
+- Serienfilter aus der Bücherübersicht entfernt
+- Metadatensuche mit Titel + Autor verbessert
+- mehrere Online-Treffer werden bewertet
+- ISBN-Suche verbessert
+- Genres hinzugefügt und bearbeitbar gemacht
+- Genres können in den Einstellungen ausgeblendet werden
+- Datenbankmigration für Genres
+
 ## 0.3.0
 
 - Umschaltung zwischen Bücher- und Serienansicht

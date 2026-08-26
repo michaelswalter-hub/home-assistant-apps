@@ -513,3 +513,86 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 @media (max-width: 430px) {
   .series-grid { grid-template-columns: 1fr; }
 }
+
+
+.genre-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 14px;
+}
+.genre-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+.genre-visibility-list {
+  display: grid;
+  gap: 8px;
+}
+.genre-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.genre-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+
+.genre-picker {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0;
+}
+.genre-picker legend {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  padding: 0 6px;
+}
+.genre-picker-list {
+  display: grid;
+  gap: 7px;
+}
+.genre-pick {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 9px !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+}
+.genre-pick input {
+  width: 18px !important;
+  height: 18px;
+}
+.genre-manager-item {
+  grid-template-columns: minmax(130px, 1fr) auto auto auto;
+}
+.genre-hide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.genre-hide-toggle input {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 650px) {
+  .genre-manager-item {
+    grid-template-columns: 1fr auto;
+  }
+}
