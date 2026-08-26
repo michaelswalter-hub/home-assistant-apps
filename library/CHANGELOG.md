@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.1
+## 0.8.2
 
 - Seriencover und Büchercover verwenden jetzt exakt dasselbe Raster und dieselbe Größe
 - Google-Books-Abfrage auf minimale, robuste API-Parameter umgestellt

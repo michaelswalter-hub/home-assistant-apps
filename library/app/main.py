@@ -71,6 +71,7 @@ def public_book(book: dict) -> dict:
         "file_size": book["file_size"],
         "metadata_source": book.get("metadata_source"),
         "rating": int(book.get("rating") or 0),
+        "person": book.get("person"),
         "genres": db.get_book_genres(book["id"]),
         "series_id": book.get("series_id"),
         "series_name": book.get("series_name"),
@@ -90,7 +91,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.8.1"})
+    return jsonify({"status": "ok", "version": "0.8.2"})
 
 @app.get("/api/books")
 def list_books():
@@ -165,6 +166,7 @@ def upload_book():
             "sha256": sha256,
             "metadata_source": enriched.get("metadata_source") or "Datei",
             "rating": 0,
+            "person": None,
             "genres": None,
             "series_id": None,
             "series_index": None,
@@ -215,6 +217,7 @@ def edit_book(book_id: str):
         "publisher",
         "published_date",
         "language",
+        "person",
     }
 
     values = {}
@@ -226,6 +229,11 @@ def edit_book(book_id: str):
             if key == "title" and not value:
                 return jsonify({"error": "Der Titel darf nicht leer sein."}), 400
             values[key] = value or None
+
+    if "person" in values:
+        person = values.get("person")
+        if person not in (None, "Hase", "HoBi"):
+            return jsonify({"error": "Person muss Hase oder HoBi sein."}), 400
 
     genre_ids = None
     if "genre_ids" in data:

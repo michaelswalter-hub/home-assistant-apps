@@ -888,3 +888,47 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .metadata-provider-status.error {
   border-color: #e53935;
 }
+
+
+.person-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.person-filter-button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.person-filter-button.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.book-person {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.person-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 650px) {
+  .person-filter {
+    order: 3;
+  }
+  .person-edit-row {
+    grid-template-columns: 1fr;
+  }
+}

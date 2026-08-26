@@ -4,6 +4,7 @@ const emptyState = document.getElementById("emptyState");
 const bookCount = document.getElementById("bookCount");
 const searchInput = document.getElementById("searchInput");
 const ratingFilter = document.getElementById("ratingFilter");
+const personFilter = document.getElementById("personFilter");
 const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
 const emptyUploadButton = document.getElementById("emptyUploadButton");
@@ -44,6 +45,7 @@ let series = [];
 let genres = [];
 let currentView = "books";
 let selectedRating = 0;
+let selectedPerson = "";
 let appSettings = {ai_enabled: false, ai_mode: "fallback", ai_model: "gpt-5.4-mini", openai_api_key_configured: false, google_books_api_key_configured: false};
 
 function api(path) {
@@ -180,6 +182,18 @@ function bindRatingButtons(container, book) {
   });
 }
 
+
+function genreSearchMatch(query, genreName) {
+  const q = String(query || "").trim().toLocaleLowerCase();
+  const genre = String(genreName || "").trim().toLocaleLowerCase();
+  if (!q || !genre) return false;
+
+  // A genre should only trigger once the user has typed most of its name.
+  // Example: "Fan" should not already reveal "Fantasy", while "Fantas" should.
+  const minimumLength = Math.max(3, Math.ceil(genre.length * 0.7));
+  return q.length >= minimumLength && genre.includes(q);
+}
+
 function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
 
@@ -188,13 +202,14 @@ function filteredBooks() {
     if (book.series_id) return false;
 
     const genreMatch = Boolean(query) && (book.genres || []).some(
-      genre => String(genre.name || "").toLocaleLowerCase().includes(query)
+      genre => genreSearchMatch(query, genre.name)
     );
 
-    // Hidden genres hide books during normal browsing. A search for the genre
-    // deliberately reveals them again so the user can still find them.
+    // Hidden genres hide books during normal browsing. A sufficiently complete
+    // genre search deliberately reveals them again.
     if (bookIsHidden(book) && !genreMatch) return false;
     if (selectedRating && Number(book.rating || 0) !== selectedRating) return false;
+    if (selectedPerson && book.person !== selectedPerson) return false;
 
     return (
       !query ||
@@ -257,6 +272,13 @@ function render() {
       card.appendChild(genreWrap);
     }
 
+    if (book.person) {
+      const personLine = document.createElement("p");
+      personLine.className = "book-person";
+      personLine.textContent = book.person;
+      card.appendChild(personLine);
+    }
+
     const ratingWrap = document.createElement("div");
     ratingWrap.className = "book-rating";
     ratingWrap.innerHTML = ratingStarsHtml(book);
@@ -284,7 +306,9 @@ function renderSeriesView() {
     !query ||
     item.name.toLocaleLowerCase().includes(query) ||
     books.some(book =>
-      book.series_id === item.id && !bookIsHidden(book) &&
+      book.series_id === item.id &&
+      !bookIsHidden(book) &&
+      (!selectedPerson || book.person === selectedPerson) &&
       ((book.title || "").toLocaleLowerCase().includes(query) ||
        (book.author || "").toLocaleLowerCase().includes(query))
     )
@@ -295,8 +319,14 @@ function renderSeriesView() {
 
   for (const item of visibleSeries) {
     const members = books
-      .filter(book => book.series_id === item.id && !bookIsHidden(book))
+      .filter(book =>
+        book.series_id === item.id &&
+        !bookIsHidden(book) &&
+        (!selectedPerson || book.person === selectedPerson)
+      )
       .sort((a, b) => (a.series_index ?? 999999) - (b.series_index ?? 999999));
+
+    if (!members.length) continue;
 
     const card = document.createElement("article");
     card.className = "series-card";
@@ -312,7 +342,7 @@ function renderSeriesView() {
       <div class="series-covers single-cover">${coverHtml}</div>
       <div class="series-card-body">
         <h2>${esc(item.name)}</h2>
-        <p>${item.book_count} ${item.book_count === 1 ? "Buch" : "Bücher"}</p>
+        <p>${members.length} ${members.length === 1 ? "Buch" : "Bücher"}</p>
       </div>
     `;
     card.addEventListener("click", () => showSeries(item.id));
@@ -355,6 +385,7 @@ async function showBook(id) {
         <p class="description">${esc(book.description || "Noch keine Zusammenfassung vorhanden.")}</p>
 
         <dl class="meta">
+          ${book.person ? `<dt>Person</dt><dd>${esc(book.person)}</dd>` : ""}
           ${book.series_name ? `<dt>Serie</dt><dd>${esc(book.series_name)}${book.series_index ? ` · Band ${esc(formatSeriesIndex(book.series_index))}` : ""}</dd>` : ""}
           <dt>ISBN</dt><dd>${esc(book.isbn || "–")}</dd>
           <dt>Verlag</dt><dd>${esc(book.publisher || "–")}</dd>
@@ -476,6 +507,16 @@ function showEditBook(book) {
             </label>
             <label>Sprache
               <input name="language" value="${esc(book.language || "")}">
+            </label>
+          </div>
+
+          <div class="person-edit-row">
+            <label>Person
+              <select name="person">
+                <option value="" ${!book.person ? "selected" : ""}>Nicht zugeordnet</option>
+                <option value="Hase" ${book.person === "Hase" ? "selected" : ""}>Hase</option>
+                <option value="HoBi" ${book.person === "HoBi" ? "selected" : ""}>HoBi</option>
+              </select>
             </label>
           </div>
 
@@ -915,6 +956,20 @@ if (ratingFilter) {
 
   paintRatingFilter();
 }
+
+if (personFilter) {
+  const personButtons = [...personFilter.querySelectorAll(".person-filter-button")];
+  personButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      selectedPerson = button.dataset.person || "";
+      personButtons.forEach(item => {
+        item.classList.toggle("active", (item.dataset.person || "") === selectedPerson);
+      });
+      render();
+    });
+  });
+}
+
 booksViewButton.addEventListener("click", () => setView("books"));
 seriesViewButton.addEventListener("click", () => setView("series"));
 
