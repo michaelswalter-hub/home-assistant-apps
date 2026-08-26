@@ -21,9 +21,9 @@
         <small>🥕 Zutaten für diesen Schritt</small>
         {% for group in s.ingredient_groups %}
         <div class="cook-ingredient-group">
-          {% if group.title %}<strong>{{group.title}}</strong>{% endif %}
+          {% if group["title"] %}<strong>{{group["title"]}}</strong>{% endif %}
           <div class="step-ingredient-list">
-            {% for ingredient in group.items %}
+            {% for ingredient in group["items"] %}
             <span>{{ingredient}}</span>
             {% endfor %}
           </div>
