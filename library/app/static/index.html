@@ -22,7 +22,13 @@
         <span>⌕</span>
         <input id="searchInput" type="search" placeholder="Titel oder Autor suchen …">
       </label>
-      <div id="bookCount" class="count"></div>
+      <div class="toolbar-actions">
+        <select id="seriesFilter" class="select" aria-label="Nach Serie filtern">
+          <option value="">Alle Serien</option>
+        </select>
+        <button id="manageSeriesButton" class="secondary">Serien verwalten</button>
+        <div id="bookCount" class="count"></div>
+      </div>
     </section>
 
     <section id="uploadStatus" class="upload-status hidden"></section>
@@ -41,6 +47,18 @@
     <div id="detailContent"></div>
   </dialog>
 
+  <dialog id="seriesDialog">
+    <button id="closeSeriesDialog" class="icon-button close" aria-label="Schließen">×</button>
+    <div class="series-manager">
+      <h2>Serien verwalten</h2>
+      <form id="seriesForm" class="series-form">
+        <input id="seriesName" required maxlength="160" placeholder="Neue Serie, z. B. Harry Potter">
+        <button class="primary" type="submit">Serie anlegen</button>
+      </form>
+      <div id="seriesList" class="series-list"></div>
+    </div>
+  </dialog>
+
   <template id="bookTemplate">
     <article class="book-card" tabindex="0">
       <div class="cover-wrap">
@@ -50,6 +68,7 @@
       </div>
       <h2 class="book-title"></h2>
       <p class="book-author"></p>
+      <p class="book-series"></p>
     </article>
   </template>
 

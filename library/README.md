@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.1.0
+## Version 0.2.0
 
 Die erste Version unterstützt:
 
@@ -19,6 +19,10 @@ Die erste Version unterstützt:
 - Detailansicht mit Zusammenfassung und weiteren Metadaten
 - erneute Online-Suche für fehlende Metadaten
 - Download der ursprünglichen EPUB-/PDF-Datei
+- iPhone/iPad: Teilen-Menü mit „In Dateien sichern“ als Download-Alternative
+- Serien anlegen, umbenennen und löschen
+- Bücher Serien zuordnen und Bandnummern pflegen
+- Bibliothek nach Serie filtern und innerhalb einer Serie nach Bandnummer sortieren
 - Duplikaterkennung per SHA-256
 - Home Assistant Ingress
 - Streaming für größere Uploads

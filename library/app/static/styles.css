@@ -261,3 +261,73 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   .detail { grid-template-columns: 1fr; padding: 22px; }
   .detail-cover { width: min(220px, 65vw); justify-self: center; }
 }
+
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.select, .series-form input, .series-edit-name, .series-index-input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 12px;
+}
+.book-series {
+  margin: 5px 0 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.series-assignment {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  margin: 18px 0;
+}
+.series-assignment h3 { margin: 0 0 10px; font-size: 15px; }
+.series-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 100px auto;
+  gap: 8px;
+}
+.series-manager { padding: 30px; min-width: min(650px, calc(100vw - 30px)); }
+.series-manager h2 { margin-top: 0; }
+.series-form { display: flex; gap: 8px; margin-bottom: 20px; }
+.series-form input { flex: 1; min-width: 0; }
+.series-list { display: grid; gap: 8px; }
+.series-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.series-item small { color: var(--muted); }
+.danger {
+  border: 1px solid #e53935;
+  border-radius: 10px;
+  background: transparent;
+  color: #e53935;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.share-note { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+@media (max-width: 650px) {
+  .toolbar-actions { justify-content: stretch; }
+  .toolbar-actions .select, .toolbar-actions .secondary { flex: 1; }
+  .series-row { grid-template-columns: 1fr 90px; }
+  .series-row .secondary { grid-column: 1 / -1; }
+  .series-form { flex-direction: column; }
+  .series-item { grid-template-columns: 1fr auto; }
+  .series-item .series-edit-name { grid-column: 1 / -1; }
+}

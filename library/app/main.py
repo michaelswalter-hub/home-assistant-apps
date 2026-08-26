@@ -63,6 +63,9 @@ def public_book(book: dict) -> dict:
         "file_name": book["file_name"],
         "file_size": book["file_size"],
         "metadata_source": book.get("metadata_source"),
+        "series_id": book.get("series_id"),
+        "series_name": book.get("series_name"),
+        "series_index": book.get("series_index"),
         "created_at": book["created_at"],
         "updated_at": book["updated_at"],
         "has_cover": bool(book.get("cover_path") and Path(book["cover_path"]).exists()),
@@ -78,7 +81,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.1.0"})
+    return jsonify({"status": "ok", "version": "0.2.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -151,6 +154,8 @@ def upload_book():
             "cover_path": cover_path,
             "sha256": sha256,
             "metadata_source": enriched.get("metadata_source") or "Datei",
+            "series_id": None,
+            "series_index": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -210,17 +215,134 @@ def get_cover(book_id: str):
         return "", 404
     return send_file(cover_path, conditional=True)
 
-@app.get("/api/books/<book_id>/download")
-def download_book(book_id: str):
+def _book_file(book_id: str):
     book = db.get_book(book_id)
     if not book:
-        return jsonify({"error": "Buch nicht gefunden."}), 404
+        return None, (jsonify({"error": "Buch nicht gefunden."}), 404)
     path = Path(book["storage_path"])
     if not path.exists():
-        return jsonify({"error": "Buchdatei fehlt."}), 404
+        return None, (jsonify({"error": "Buchdatei fehlt."}), 404)
+    return (book, path), None
+
+@app.get("/api/books/<book_id>/download")
+def download_book(book_id: str):
+    result, error = _book_file(book_id)
+    if error:
+        return error
+    book, path = result
+    mimetype = "application/pdf" if book["format"] == "PDF" else "application/epub+zip"
     return send_file(
         path,
+        mimetype=mimetype,
         as_attachment=True,
         download_name=book["file_name"],
         conditional=True,
     )
+
+@app.get("/api/books/<book_id>/open")
+def open_book(book_id: str):
+    """Inline response for iOS/Safari/Quick Look where possible."""
+    result, error = _book_file(book_id)
+    if error:
+        return error
+    book, path = result
+    mimetype = "application/pdf" if book["format"] == "PDF" else "application/epub+zip"
+    response = send_file(
+        path,
+        mimetype=mimetype,
+        as_attachment=False,
+        download_name=book["file_name"],
+        conditional=True,
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+@app.get("/api/series")
+def list_series():
+    return jsonify(db.list_series())
+
+@app.post("/api/series")
+def create_series():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()
+    description = str(data.get("description") or "").strip() or None
+    if not name:
+        return jsonify({"error": "Bitte einen Seriennamen angeben."}), 400
+
+    now = utcnow()
+    series = {
+        "id": uuid4().hex,
+        "name": name,
+        "description": description,
+        "created_at": now,
+        "updated_at": now,
+    }
+    try:
+        db.create_series(series)
+    except Exception as exc:
+        if "UNIQUE constraint failed" in str(exc):
+            return jsonify({"error": "Eine Serie mit diesem Namen existiert bereits."}), 409
+        raise
+    return jsonify(db.get_series(series["id"])), 201
+
+@app.patch("/api/series/<series_id>")
+def edit_series(series_id: str):
+    current = db.get_series(series_id)
+    if not current:
+        return jsonify({"error": "Serie nicht gefunden."}), 404
+    data = request.get_json(silent=True) or {}
+    values = {"updated_at": utcnow()}
+    if "name" in data:
+        name = str(data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Der Serienname darf nicht leer sein."}), 400
+        values["name"] = name
+    if "description" in data:
+        values["description"] = str(data.get("description") or "").strip() or None
+    try:
+        db.update_series(series_id, values)
+    except Exception as exc:
+        if "UNIQUE constraint failed" in str(exc):
+            return jsonify({"error": "Eine Serie mit diesem Namen existiert bereits."}), 409
+        raise
+    return jsonify(db.get_series(series_id))
+
+@app.delete("/api/series/<series_id>")
+def remove_series(series_id: str):
+    if not db.get_series(series_id):
+        return jsonify({"error": "Serie nicht gefunden."}), 404
+    db.delete_series(series_id)
+    return "", 204
+
+@app.patch("/api/books/<book_id>/series")
+def assign_book_series(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    series_id = data.get("series_id") or None
+    series_index = data.get("series_index")
+
+    if series_id and not db.get_series(series_id):
+        return jsonify({"error": "Serie nicht gefunden."}), 404
+
+    if series_index in ("", None):
+        series_index = None
+    else:
+        try:
+            series_index = float(series_index)
+            if series_index <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "Die Bandnummer muss eine positive Zahl sein."}), 400
+
+    db.update_book(
+        book_id,
+        {
+            "series_id": series_id,
+            "series_index": series_index if series_id else None,
+            "updated_at": utcnow(),
+        },
+    )
+    return jsonify(public_book(db.get_book(book_id)))
