@@ -67,9 +67,18 @@ async function loadData() {
     fetch(api("series")),
     fetch(api("genres"))
   ]);
-  books = await bookResponse.json();
-  series = await seriesResponse.json();
-  genres = await genreResponse.json();
+
+  if (!bookResponse.ok) throw new Error("Bücher konnten nicht geladen werden.");
+  if (!seriesResponse.ok) throw new Error("Serien konnten nicht geladen werden.");
+  if (!genreResponse.ok) throw new Error("Genres konnten nicht geladen werden.");
+
+  const loadedBooks = await bookResponse.json();
+  const loadedSeries = await seriesResponse.json();
+  const loadedGenres = await genreResponse.json();
+
+  books = Array.isArray(loadedBooks) ? loadedBooks : [];
+  series = Array.isArray(loadedSeries) ? loadedSeries : [];
+  genres = Array.isArray(loadedGenres) ? loadedGenres : [];
   render();
 }
 
@@ -567,6 +576,10 @@ function amazonSearchUrl(candidate) {
 }
 
 async function showMetadataCandidates(book) {
+  if (!metadataDialog || !metadataCandidates) {
+    throw new Error("Die Metadaten-Auswahl konnte nicht geöffnet werden. Bitte die App aktualisieren und neu laden.");
+  }
+
   metadataCandidates.innerHTML = "<p>Metadaten werden gesucht …</p>";
   metadataDialog.showModal();
   const response = await fetch(api(`books/${book.id}/metadata-candidates`));
@@ -650,7 +663,11 @@ dialog.addEventListener("click", event => {
   if (event.target === dialog) dialog.close();
 });
 
-closeMetadata.addEventListener("click", () => metadataDialog.close());
+if (closeMetadata && metadataDialog) {
+  if (closeMetadata && metadataDialog) {
+  closeMetadata.addEventListener("click", () => metadataDialog.close());
+}
+}
 
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();

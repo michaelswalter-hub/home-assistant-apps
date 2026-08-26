@@ -12,7 +12,7 @@ from uuid import uuid4
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
 from database import Database
-from metadata import download_cover, enrich_metadata, extract_local_metadata
+from metadata import download_cover, enrich_metadata, extract_local_metadata, search_metadata_candidates
 
 DATA_DIR = Path(os.environ.get("LIBRARY_DATA_DIR", "/data/library"))
 BOOKS_DIR = DATA_DIR / "books"
@@ -83,7 +83,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.6.1"})
+    return jsonify({"status": "ok", "version": "0.6.2"})
 
 @app.get("/api/books")
 def list_books():

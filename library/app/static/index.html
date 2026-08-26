@@ -94,6 +94,17 @@
     </article>
   </template>
 
+
+  <dialog id="metadataDialog" class="metadata-modal">
+    <button id="closeMetadata" class="icon-button close" aria-label="Schließen">×</button>
+    <div class="metadata-dialog-content">
+      <p class="eyebrow">METADATENSUCHE</p>
+      <h2>Passende Ausgaben</h2>
+      <p class="settings-help">Wähle den richtigen Treffer. Die ausgewählte Ausgabe kann ISBN, Verlag, Erscheinungsdatum, Cover und Zusammenfassung übernehmen.</p>
+      <div id="metadataCandidates" class="metadata-candidates"></div>
+    </div>
+  </dialog>
+
   <script src="static/app.js"></script>
 </body>
 </html>

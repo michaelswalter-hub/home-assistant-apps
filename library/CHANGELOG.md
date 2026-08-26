@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.2
+
+- kritischen JavaScript-Startfehler aus 0.6.1 behoben
+- fehlenden Metadaten-Treffer-Dialog in die Oberfläche eingefügt
+- `null is not an object` bei der Metadatensuche behoben
+- Zahnrad/Einstellungen funktionieren wieder
+- vorhandene Bücher werden beim Öffnen wieder direkt geladen
+- fehlenden Backend-Import für `search_metadata_candidates` ergänzt
+- API-Ladefehler werden jetzt sauber abgefangen
+
 ## 0.6.1
 
 - Versionsnummer erhöht, damit Home Assistant das Update erkennt
