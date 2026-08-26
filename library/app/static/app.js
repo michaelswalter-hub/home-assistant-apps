@@ -16,6 +16,9 @@ const booksViewButton = document.getElementById("booksViewButton");
 const seriesViewButton = document.getElementById("seriesViewButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsDialog = document.getElementById("settingsDialog");
+const metadataDialog = document.getElementById("metadataDialog");
+const metadataCandidates = document.getElementById("metadataCandidates");
+const closeMetadata = document.getElementById("closeMetadata");
 const closeSettingsDialog = document.getElementById("closeSettingsDialog");
 const seriesForm = document.getElementById("seriesForm");
 const seriesName = document.getElementById("seriesName");
@@ -312,33 +315,12 @@ async function showBook(id) {
     event.currentTarget.disabled = true;
     event.currentTarget.textContent = "Suche läuft …";
     try {
-      const refresh = await fetch(api(`books/${book.id}/refresh-metadata`), {method: "POST"});
-      if (!refresh.ok) throw new Error("Metadatensuche fehlgeschlagen");
-      const result = await refresh.json();
-      const search = result.metadata_search || {};
-      await loadData();
-      await showBook(book.id);
-
-      if (search.changed_fields && search.changed_fields.length) {
-        const labels = {
-          isbn: "ISBN",
-          description: "Zusammenfassung",
-          publisher: "Verlag",
-          published_date: "Erscheinungsdatum",
-          language: "Sprache",
-          subtitle: "Untertitel",
-          cover_path: "Cover"
-        };
-        alert(`Metadaten gefunden. Ergänzt: ${search.changed_fields.map(field => labels[field] || field).join(", ")}.`);
-      } else if (search.isbn_found) {
-        alert("Ein passender Datensatz wurde gefunden. Die ISBN ist bereits vorhanden; es gab keine weiteren fehlenden Felder.");
-      } else {
-        alert("Für Titel und Autor wurde kein ausreichend passender Datensatz mit zusätzlichen Metadaten gefunden.");
-      }
+      await showMetadataCandidates(book);
     } catch (error) {
+      alert(error.message);
+    } finally {
       event.currentTarget.disabled = false;
       event.currentTarget.textContent = "Metadaten erneut suchen";
-      alert(error.message);
     }
   });
 }
@@ -578,6 +560,56 @@ function renderGenreManager() {
   }
 }
 
+
+function amazonSearchUrl(candidate) {
+  const query = candidate.isbn || [candidate.title, candidate.author].filter(Boolean).join(" ");
+  return `https://www.amazon.de/s?k=${encodeURIComponent(query)}`;
+}
+
+async function showMetadataCandidates(book) {
+  metadataCandidates.innerHTML = "<p>Metadaten werden gesucht …</p>";
+  metadataDialog.showModal();
+  const response = await fetch(api(`books/${book.id}/metadata-candidates`));
+  if (!response.ok) throw new Error("Metadatensuche fehlgeschlagen.");
+  const candidates = await response.json();
+  if (!candidates.length) {
+    metadataCandidates.innerHTML = "<p>Keine ausreichend passenden Treffer gefunden.</p>";
+    return;
+  }
+  metadataCandidates.innerHTML = "";
+  for (const candidate of candidates) {
+    const card = document.createElement("article");
+    card.className = "metadata-candidate";
+    card.innerHTML = `
+      <div>${candidate.cover_url ? `<img src="${esc(candidate.cover_url)}" alt="">` : `<div class="metadata-cover-placeholder"></div>`}</div>
+      <div>
+        <h3>${esc(candidate.title || "Ohne Titel")}</h3>
+        <p>${esc(candidate.author || "Autor unbekannt")}</p>
+        <p><strong>ISBN:</strong> ${esc(candidate.isbn || "–")}</p>
+        <p><strong>Ausgabe:</strong> ${esc(candidate.published_date || "–")}${candidate.publisher ? ` · ${esc(candidate.publisher)}` : ""}</p>
+        <p><strong>Quelle:</strong> ${esc(candidate.metadata_source || "Online")}</p>
+        <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung in diesem Treffer.")}</p>
+        <div class="metadata-candidate-actions">
+          <button class="primary choose-metadata" type="button">Diesen Treffer übernehmen</button>
+          <a class="secondary amazon-search" target="_blank" rel="noopener noreferrer">Auf Amazon suchen</a>
+        </div>
+      </div>`;
+    card.querySelector(".amazon-search").href = amazonSearchUrl(candidate);
+    card.querySelector(".choose-metadata").addEventListener("click", async () => {
+      const button=card.querySelector(".choose-metadata"); button.disabled=true; button.textContent="Übernehme …";
+      try {
+        const apply=await fetch(api(`books/${book.id}/metadata-candidates/apply`),{
+          method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidate})
+        });
+        const result=await apply.json();
+        if(!apply.ok) throw new Error(result.error || "Metadaten konnten nicht übernommen werden.");
+        metadataDialog.close(); await loadData(); await showBook(book.id);
+      } catch(error) { alert(error.message); button.disabled=false; button.textContent="Diesen Treffer übernehmen"; }
+    });
+    metadataCandidates.appendChild(card);
+  }
+}
+
 async function uploadFiles(files) {
   if (!files.length) return;
   uploadStatus.classList.remove("hidden", "error");
@@ -617,6 +649,8 @@ closeDialog.addEventListener("click", () => dialog.close());
 dialog.addEventListener("click", event => {
   if (event.target === dialog) dialog.close();
 });
+
+closeMetadata.addEventListener("click", () => metadataDialog.close());
 
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();

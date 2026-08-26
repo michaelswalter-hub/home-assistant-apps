@@ -233,6 +233,55 @@ def edit_book(book_id: str):
     return jsonify(public_book(db.get_book(book_id)))
 
 
+
+@app.get("/api/books/<book_id>/metadata-candidates")
+def metadata_candidates(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    local = {
+        "title": book.get("title"),
+        "author": book.get("author"),
+        "isbn": book.get("isbn"),
+    }
+    candidates = search_metadata_candidates(local, METADATA_LANGUAGE, limit=10)
+    return jsonify(candidates)
+
+@app.post("/api/books/<book_id>/metadata-candidates/apply")
+def apply_metadata_candidate(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    candidate = data.get("candidate")
+    if not isinstance(candidate, dict):
+        return jsonify({"error": "Kein gültiger Metadaten-Treffer übergeben."}), 400
+
+    allowed = {
+        "subtitle", "author", "description", "isbn",
+        "publisher", "published_date", "language",
+    }
+    values = {}
+    for key in allowed:
+        value = candidate.get(key)
+        if value not in (None, ""):
+            # Title is deliberately not overwritten. Other selected edition
+            # metadata may be replaced because the user explicitly chose it.
+            values[key] = str(value).strip() or None
+
+    cover_url = candidate.get("cover_url")
+    if cover_url:
+        cover = download_cover(cover_url, Path(book["storage_path"]).parent)
+        if cover:
+            values["cover_path"] = str(cover)
+
+    values["metadata_source"] = candidate.get("metadata_source") or "Online"
+    values["updated_at"] = utcnow()
+    db.update_book(book_id, values)
+    return jsonify(public_book(db.get_book(book_id)))
+
 @app.post("/api/books/<book_id>/refresh-metadata")
 def refresh_metadata(book_id: str):
     book = db.get_book(book_id)

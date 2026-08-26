@@ -446,6 +446,62 @@ def _best_candidate(candidates: list[dict], title: str | None, author: str | Non
         return {}
     return best
 
+
+def search_metadata_candidates(local: dict, language: str = "de", limit: int = 10) -> list[dict]:
+    title = local.get("title")
+    author = local.get("author")
+    isbn = local.get("isbn")
+    candidates = []
+
+    if isbn:
+        candidates.extend(_google_books_candidates(f"isbn:{isbn}", language))
+        candidates.extend(_open_library_candidates(isbn, title, author))
+
+    queries = []
+    if title and author:
+        queries.extend([
+            f'intitle:"{title}" inauthor:"{author}"',
+            f"intitle:{title} inauthor:{author}",
+            f"{title} {author}",
+            title,
+        ])
+    elif title:
+        queries.extend([f'intitle:"{title}"', f"intitle:{title}", title])
+    elif author:
+        queries.extend([f'inauthor:"{author}"', f"inauthor:{author}"])
+
+    seen_queries = set()
+    for query in queries:
+        key = query.casefold().strip()
+        if key not in seen_queries:
+            seen_queries.add(key)
+            candidates.extend(_google_books_candidates(query, language))
+
+    candidates.extend(_open_library_candidates(None, title, author))
+    candidates.extend(_open_library_general_candidates(title, author))
+
+    ranked = sorted(candidates, key=lambda c: _match_score(c, title, author), reverse=True)
+    unique = []
+    seen = set()
+    for candidate in ranked:
+        if title and _similarity(title, candidate.get("title")) < 0.42:
+            continue
+        key = (
+            normalize_isbn(candidate.get("isbn")) or "",
+            _normalize_title(candidate.get("title")),
+            _normalize_title(candidate.get("author")),
+            candidate.get("published_date") or "",
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        candidate = dict(candidate)
+        candidate["score"] = round(_match_score(candidate, title, author), 1)
+        unique.append(candidate)
+        if len(unique) >= limit:
+            break
+    return unique
+
 def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = False) -> dict:
     title = local.get("title")
     author = local.get("author")
@@ -483,22 +539,45 @@ def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = Fals
     merged = dict(local)
 
     if best:
-        for key, value in best.items():
-            if key in {"metadata_source", "cover_url"}:
-                continue
-            if key == "genres":
-                combined = []
-                for genre in [*(merged.get("genres") or []), *(value or [])]:
-                    if genre and genre.casefold() not in {g.casefold() for g in combined}:
-                        combined.append(genre)
-                if combined:
-                    merged["genres"] = combined
-                continue
-            if value and not merged.get(key):
-                merged[key] = value
+        # Do not rely on one provider record for every field. A Google Books
+        # result may have the ISBN but no description, while another matching
+        # edition has a useful summary. Rank all sufficiently similar records
+        # and use them to fill missing fields.
+        ranked = sorted(
+            candidates,
+            key=lambda candidate: _match_score(candidate, title, author),
+            reverse=True,
+        )
+        compatible = []
+        for candidate in ranked:
+            title_similarity = _similarity(title, candidate.get("title")) if title else 1.0
+            if title_similarity >= 0.55:
+                compatible.append(candidate)
 
-        if best.get("cover_url") and not merged.get("cover_url"):
-            merged["cover_url"] = best["cover_url"]
+        # The best match always comes first.
+        if best not in compatible:
+            compatible.insert(0, best)
+
+        for candidate in compatible:
+            for key, value in candidate.items():
+                if key in {"metadata_source", "cover_url", "genres"}:
+                    continue
+                if value and not merged.get(key):
+                    merged[key] = value
+
+            if candidate.get("cover_url") and not merged.get("cover_url"):
+                merged["cover_url"] = candidate["cover_url"]
+
+        # Prefer a meaningful summary from any compatible edition.
+        if not merged.get("description"):
+            descriptions = [
+                candidate.get("description")
+                for candidate in compatible
+                if candidate.get("description")
+            ]
+            if descriptions:
+                merged["description"] = max(descriptions, key=len)
+
         merged["metadata_source"] = best.get("metadata_source") or "Online"
     elif local:
         merged["metadata_source"] = local.get("metadata_source") or "Datei"

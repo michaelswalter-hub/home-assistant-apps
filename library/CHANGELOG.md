@@ -2,6 +2,10 @@
 
 ## 0.6.0
 
+- Amazon.de-Suche pro Treffer über ISBN bzw. Titel und Autor hinzugefügt
+- Treffer zeigen Cover, Titel, Autor, ISBN, Ausgabe, Verlag, Quelle und Zusammenfassung
+- Metadatensuche zeigt mögliche Treffer zur manuellen Auswahl
+- Metadatensuche ergänzt jetzt auch Zusammenfassungen aus passenden alternativen Ausgaben/Treffern
 - Bücher mit Serienzuordnung werden in der Bücheransicht nicht mehr angezeigt
 - Zahnrad in den Kopfbereich über „Bücher hinzufügen“ verschoben
 - Suche berücksichtigt Genre-Namen
