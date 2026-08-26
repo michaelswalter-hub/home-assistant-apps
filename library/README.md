@@ -147,3 +147,7 @@ Genres werden jetzt ausschließlich in den Einstellungen verwaltet:
 - pro Genre festlegen, ob zugehörige Bücher in der Übersicht ausgeblendet werden
 - ein Buch kann mehreren Genres zugeordnet werden
 - Genre-Zuordnung erfolgt in „Buch bearbeiten“
+
+## Verhalten der Ansichten
+
+- Bücher mit Serienzuordnung erscheinen nur noch in der Serienansicht

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+- Bücher mit Serienzuordnung werden in der Bücheransicht nicht mehr angezeigt
+- Zahnrad in den Kopfbereich über „Bücher hinzufügen“ verschoben
+- Suche berücksichtigt Genre-Namen
+- Suche nach einem ausgeblendeten Genre zeigt dessen Bücher temporär wieder an
+- Genres werden auf Buchkarten angezeigt
+- ausgeblendete Genres werden in der Detailansicht gekennzeichnet
+- Metadatensuche mit zusätzlichen Google-Books- und Open-Library-Abfragen erweitert
+- Trefferbewertung für Titel/Autor verbessert
+- Metadatensuche zeigt jetzt an, ob und welche Felder ergänzt wurden
+
 ## 0.5.0
 
 - zentrale Genre-Verwaltung in den Einstellungen

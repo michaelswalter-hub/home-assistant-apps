@@ -87,16 +87,26 @@ function setView(view) {
 
 function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
-  return books.filter(book =>
-    !bookIsHidden(book) &&
-    (
+
+  return books.filter(book => {
+    // Bücher mit Serienzuordnung werden ausschließlich in der Serienansicht gezeigt.
+    if (book.series_id) return false;
+
+    const genreMatch = Boolean(query) && (book.genres || []).some(
+      genre => String(genre.name || "").toLocaleLowerCase().includes(query)
+    );
+
+    // Hidden genres hide books during normal browsing. A search for the genre
+    // deliberately reveals them again so the user can still find them.
+    if (bookIsHidden(book) && !genreMatch) return false;
+
+    return (
       !query ||
       (book.title || "").toLocaleLowerCase().includes(query) ||
       (book.author || "").toLocaleLowerCase().includes(query) ||
-      (book.series_name || "").toLocaleLowerCase().includes(query) ||
-      visibleBookGenres(book).some(g => String(g.name).toLocaleLowerCase().includes(query))
-    )
-  );
+      genreMatch
+    );
+  });
 }
 
 function render() {
@@ -138,6 +148,19 @@ function render() {
     } else {
       seriesLine.classList.add("hidden");
     }
+
+    if (book.genres && book.genres.length) {
+      const genreWrap = document.createElement("div");
+      genreWrap.className = "book-card-genres";
+      for (const genre of book.genres.slice(0, 3)) {
+        const chip = document.createElement("span");
+        chip.className = `book-card-genre${genre.hidden ? " hidden-genre" : ""}`;
+        chip.textContent = genre.name;
+        genreWrap.appendChild(chip);
+      }
+      card.appendChild(genreWrap);
+    }
+
     card.addEventListener("click", () => showBook(book.id));
     card.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") {
@@ -220,7 +243,7 @@ async function showBook(id) {
         <h2>${esc(book.title)}</h2>
         ${book.subtitle ? `<p class="subtitle">${esc(book.subtitle)}</p>` : ""}
         <p class="detail-author">${esc(book.author || "Autor unbekannt")}</p>
-        ${visibleBookGenres(book).length ? `<div class="genre-chips">${visibleBookGenres(book).map(g => `<span class="genre-chip">${esc(g.name)}</span>`).join("")}</div>` : ""}
+        ${(book.genres || []).length ? `<div class="genre-chips">${(book.genres || []).map(g => `<span class="genre-chip${g.hidden ? " hidden-genre" : ""}">${esc(g.name)}${g.hidden ? " · ausgeblendet" : ""}</span>`).join("")}</div>` : ""}
 
         <div class="detail-top-actions">
           <button class="secondary" id="editBook">Bearbeiten</button>
@@ -291,8 +314,27 @@ async function showBook(id) {
     try {
       const refresh = await fetch(api(`books/${book.id}/refresh-metadata`), {method: "POST"});
       if (!refresh.ok) throw new Error("Metadatensuche fehlgeschlagen");
+      const result = await refresh.json();
+      const search = result.metadata_search || {};
       await loadData();
       await showBook(book.id);
+
+      if (search.changed_fields && search.changed_fields.length) {
+        const labels = {
+          isbn: "ISBN",
+          description: "Zusammenfassung",
+          publisher: "Verlag",
+          published_date: "Erscheinungsdatum",
+          language: "Sprache",
+          subtitle: "Untertitel",
+          cover_path: "Cover"
+        };
+        alert(`Metadaten gefunden. Ergänzt: ${search.changed_fields.map(field => labels[field] || field).join(", ")}.`);
+      } else if (search.isbn_found) {
+        alert("Ein passender Datensatz wurde gefunden. Die ISBN ist bereits vorhanden; es gab keine weiteren fehlenden Felder.");
+      } else {
+        alert("Für Titel und Autor wurde kein ausreichend passender Datensatz mit zusätzlichen Metadaten gefunden.");
+      }
     } catch (error) {
       event.currentTarget.disabled = false;
       event.currentTarget.textContent = "Metadaten erneut suchen";

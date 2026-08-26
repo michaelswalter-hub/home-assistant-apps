@@ -83,7 +83,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.5.0"})
+    return jsonify({"status": "ok", "version": "0.6.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -198,19 +198,6 @@ def edit_book(book_id: str):
                 return jsonify({"error": "Der Titel darf nicht leer sein."}), 400
             values[key] = value or None
 
-    if "genres" in data:
-        raw_genres = data.get("genres")
-        if isinstance(raw_genres, str):
-            raw_genres = re.split(r"[,;\n]+", raw_genres)
-        if not isinstance(raw_genres, list):
-            return jsonify({"error": "Genres müssen als Liste oder Text angegeben werden."}), 400
-        genres = []
-        for genre in raw_genres:
-            genre = str(genre or "").strip()
-            if genre and genre.casefold() not in {g.casefold() for g in genres}:
-                genres.append(genre)
-        values["genres"] = json.dumps(genres, ensure_ascii=False)
-
     genre_ids = None
     if "genre_ids" in data:
         genre_ids = data.get("genre_ids") or []
@@ -283,7 +270,18 @@ def refresh_metadata(book_id: str):
     db.update_book(book_id, values)
 
     updated = db.get_book(book_id)
-    return jsonify(public_book(updated))
+    payload = public_book(updated)
+    changed_fields = sorted(
+        key for key in values.keys()
+        if key not in {"updated_at", "metadata_source"}
+    )
+    payload["metadata_search"] = {
+        "matched": bool(enriched.get("metadata_source") and enriched.get("metadata_source") not in {"Datei", book.get("metadata_source")}),
+        "source": enriched.get("metadata_source"),
+        "changed_fields": changed_fields,
+        "isbn_found": bool(updated.get("isbn")),
+    }
+    return jsonify(payload)
 
 @app.get("/api/books/<book_id>/cover")
 def get_cover(book_id: str):

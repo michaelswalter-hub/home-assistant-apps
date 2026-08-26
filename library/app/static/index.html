@@ -12,7 +12,10 @@
       <p class="eyebrow">HOME ASSISTANT</p>
       <h1>Meine Bibliothek</h1>
     </div>
-    <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
+    <div class="header-actions">
+      <button id="settingsButton" class="icon-button settings-button" aria-label="Einstellungen" title="Einstellungen">⚙</button>
+      <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
+    </div>
     <input id="fileInput" type="file" accept=".epub,.pdf,application/epub+zip,application/pdf" multiple hidden>
   </header>
 
@@ -25,12 +28,11 @@
 
       <label class="search">
         <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Titel, Autor oder Serie suchen …">
+        <input id="searchInput" type="search" placeholder="Titel, Autor, Serie oder Genre suchen …">
       </label>
 
       <div class="toolbar-actions">
         <div id="bookCount" class="count"></div>
-        <button id="settingsButton" class="icon-button settings-button" aria-label="Einstellungen" title="Einstellungen">⚙</button>
       </div>
     </section>
 

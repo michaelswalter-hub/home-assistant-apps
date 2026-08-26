@@ -7,6 +7,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+from difflib import SequenceMatcher
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -242,20 +243,29 @@ def _normalize_title(value: str | None) -> str:
 def _tokens(value: str | None) -> set[str]:
     return {part for part in _normalize_title(value).split() if len(part) > 1}
 
-def _match_score(candidate: dict, title: str | None, author: str | None) -> float:
-    score = 0.0
-    wanted_title = _tokens(title)
-    found_title = _tokens(candidate.get("title"))
-    if wanted_title:
-        score += (len(wanted_title & found_title) / max(1, len(wanted_title))) * 70
 
-    wanted_author = _tokens(author)
-    found_author = _tokens(candidate.get("author"))
-    if wanted_author:
-        score += (len(wanted_author & found_author) / max(1, len(wanted_author))) * 30
+def _similarity(a: str | None, b: str | None) -> float:
+    a_norm = _normalize_title(a)
+    b_norm = _normalize_title(b)
+    if not a_norm or not b_norm:
+        return 0.0
+    return SequenceMatcher(None, a_norm, b_norm).ratio()
+
+def _match_score(candidate: dict, title: str | None, author: str | None) -> float:
+    title_ratio = _similarity(title, candidate.get("title"))
+    score = title_ratio * 75
+
+    if author:
+        author_ratio = _similarity(author, candidate.get("author"))
+        wanted = _tokens(author)
+        found = _tokens(candidate.get("author"))
+        token_overlap = len(wanted & found) / max(1, len(wanted)) if wanted else 0
+        score += max(author_ratio, token_overlap) * 30
 
     if candidate.get("isbn"):
-        score += 5
+        score += 6
+    if candidate.get("description"):
+        score += 2
     return score
 
 def _google_books_candidates(query: str, language: str = "de") -> list[dict]:
@@ -380,12 +390,59 @@ def _open_library_candidates(isbn: str | None, title: str | None, author: str | 
     except Exception:
         return results
 
+
+def _open_library_general_candidates(title: str | None, author: str | None) -> list[dict]:
+    if not title and not author:
+        return []
+    try:
+        query = " ".join(part for part in (title, author) if part)
+        data = _get_json(
+            "https://openlibrary.org/search.json",
+            {"q": query, "limit": 15, "fields": "title,author_name,isbn,publisher,first_publish_year,language,cover_i,subject"},
+        )
+        results = []
+        for doc in data.get("docs") or []:
+            found_isbn = None
+            for value in doc.get("isbn") or []:
+                candidate = normalize_isbn(value)
+                if candidate and len(candidate) == 13:
+                    found_isbn = candidate
+                    break
+                if candidate and not found_isbn:
+                    found_isbn = candidate
+
+            genres = []
+            for value in (doc.get("subject") or [])[:12]:
+                cleaned = _clean_text(value)
+                if cleaned and cleaned.casefold() not in {g.casefold() for g in genres}:
+                    genres.append(cleaned)
+
+            cover_id = doc.get("cover_i")
+            results.append({
+                "title": _clean_text(doc.get("title")),
+                "author": ", ".join(doc.get("author_name") or []) or None,
+                "isbn": found_isbn,
+                "publisher": ", ".join((doc.get("publisher") or [])[:3]) or None,
+                "published_date": str(doc.get("first_publish_year")) if doc.get("first_publish_year") else None,
+                "language": (doc.get("language") or [None])[0],
+                "genres": genres,
+                "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else None,
+                "metadata_source": "Open Library",
+            })
+        return results
+    except Exception:
+        return []
+
 def _best_candidate(candidates: list[dict], title: str | None, author: str | None) -> dict:
     if not candidates:
         return {}
     ranked = sorted(candidates, key=lambda c: _match_score(c, title, author), reverse=True)
     best = ranked[0]
-    if title and _match_score(best, title, author) < 35:
+
+    # Require a recognizable title match, but do not reject a good book merely
+    # because author spelling/order differs between providers.
+    title_similarity = _similarity(title, best.get("title")) if title else 1.0
+    if title and title_similarity < 0.45:
         return {}
     return best
 
@@ -401,18 +458,26 @@ def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = Fals
     else:
         queries = []
         if title and author:
-            queries.extend([f"intitle:{title} inauthor:{author}", f"{title} {author}"])
+            queries.extend([
+                f'intitle:"{title}" inauthor:"{author}"',
+                f"intitle:{title} inauthor:{author}",
+                f"{title} {author}",
+                title,
+            ])
         elif title:
-            queries.extend([f"intitle:{title}", title])
+            queries.extend([f'intitle:"{title}"', f"intitle:{title}", title])
         elif author:
-            queries.append(f"inauthor:{author}")
+            queries.extend([f'inauthor:"{author}"', f"inauthor:{author}"])
 
         seen = set()
         for query in queries:
-            if query not in seen:
-                seen.add(query)
+            normalized_query = query.casefold().strip()
+            if normalized_query not in seen:
+                seen.add(normalized_query)
                 candidates.extend(_google_books_candidates(query, language))
+
         candidates.extend(_open_library_candidates(None, title, author))
+        candidates.extend(_open_library_general_candidates(title, author))
 
     best = _best_candidate(candidates, title, author)
     merged = dict(local)
