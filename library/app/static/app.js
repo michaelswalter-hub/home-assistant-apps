@@ -27,12 +27,20 @@ const seriesList = document.getElementById("seriesList");
 const genreForm = document.getElementById("genreForm");
 const genreName = document.getElementById("genreName");
 const genreList = document.getElementById("genreList");
+const aiSettingsForm = document.getElementById("aiSettingsForm");
+const aiEnabled = document.getElementById("aiEnabled");
+const aiMode = document.getElementById("aiMode");
+const aiModel = document.getElementById("aiModel");
+const openaiApiKey = document.getElementById("openaiApiKey");
+const apiKeyStatus = document.getElementById("apiKeyStatus");
+const clearApiKey = document.getElementById("clearApiKey");
 
 let books = [];
 let series = [];
 let genres = [];
 let currentView = "books";
 let selectedRating = 0;
+let appSettings = {ai_enabled: false, ai_mode: "fallback", ai_model: "gpt-5.4-mini", openai_api_key_configured: false};
 
 function api(path) {
   return `api/${path}`;
@@ -64,10 +72,11 @@ function esc(value) {
 }
 
 async function loadData() {
-  const [bookResponse, seriesResponse, genreResponse] = await Promise.all([
+  const [bookResponse, seriesResponse, genreResponse, settingsResponse] = await Promise.all([
     fetch(api("books")),
     fetch(api("series")),
-    fetch(api("genres"))
+    fetch(api("genres")),
+    fetch(api("settings"))
   ]);
 
   if (!bookResponse.ok) throw new Error("Bücher konnten nicht geladen werden.");
@@ -81,6 +90,10 @@ async function loadData() {
   books = Array.isArray(loadedBooks) ? loadedBooks : [];
   series = Array.isArray(loadedSeries) ? loadedSeries : [];
   genres = Array.isArray(loadedGenres) ? loadedGenres : [];
+
+  if (settingsResponse.ok) {
+    appSettings = await settingsResponse.json();
+  }
   render();
 }
 
@@ -584,6 +597,18 @@ function renderSeriesManager() {
 }
 
 
+
+function populateAiSettings() {
+  if (!aiSettingsForm) return;
+  aiEnabled.checked = Boolean(appSettings.ai_enabled);
+  aiMode.value = appSettings.ai_mode || "fallback";
+  aiModel.value = appSettings.ai_model || "gpt-5.4-mini";
+  openaiApiKey.value = "";
+  apiKeyStatus.textContent = appSettings.openai_api_key_configured
+    ? "API-Key ist hinterlegt. Er wird aus Sicherheitsgründen nicht angezeigt."
+    : "Noch kein API-Key hinterlegt.";
+}
+
 function renderGenreManager() {
   const container = document.getElementById("genreList");
   container.innerHTML = genres.length ? "" : "<p>Noch keine Genres angelegt.</p>";
@@ -651,6 +676,76 @@ function amazonSearchUrl(candidate) {
   return `https://www.amazon.de/s?k=${encodeURIComponent(query)}`;
 }
 
+
+function renderAiCandidate(book, candidate) {
+  const card = document.createElement("article");
+  card.className = "metadata-candidate ai-candidate";
+  const sources = Array.isArray(candidate.sources) ? candidate.sources : [];
+
+  card.innerHTML = `
+    <div>${candidate.cover_url ? `<img src="${esc(candidate.cover_url)}" alt="">` : `<div class="metadata-cover-placeholder"></div>`}</div>
+    <div>
+      <h3>${esc(candidate.title || book.title || "Ohne Titel")}</h3>
+      <p>${esc(candidate.author || book.author || "Autor unbekannt")}</p>
+      <p><strong>ISBN:</strong> ${esc(candidate.isbn || "–")}</p>
+      <p><strong>Ausgabe:</strong> ${esc(candidate.published_date || "–")}${candidate.publisher ? ` · ${esc(candidate.publisher)}` : ""}</p>
+      <p><strong>Quelle:</strong> <span class="metadata-source-badge">KI-Websuche</span></p>
+      ${candidate.confidence ? `<p><strong>Sicherheit:</strong> ${esc(candidate.confidence)}</p>` : ""}
+      ${candidate.notes ? `<p class="metadata-summary-preview">${esc(candidate.notes)}</p>` : ""}
+      <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung gefunden.")}</p>
+      ${sources.length ? `<div class="ai-sources"><strong>Quellen:</strong>${sources.slice(0, 5).map(url => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`).join("")}</div>` : ""}
+      <div class="metadata-candidate-actions">
+        <button class="primary choose-ai-metadata" type="button">KI-Treffer übernehmen</button>
+        <a class="secondary amazon-search" target="_blank" rel="noopener noreferrer">Auf Amazon suchen</a>
+      </div>
+    </div>
+  `;
+
+  card.querySelector(".amazon-search").href = amazonSearchUrl(candidate);
+  card.querySelector(".choose-ai-metadata").addEventListener("click", async () => {
+    const button = card.querySelector(".choose-ai-metadata");
+    button.disabled = true;
+    button.textContent = "Übernehme …";
+    try {
+      const apply = await fetch(api(`books/${book.id}/metadata-candidates/apply`), {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({candidate})
+      });
+      const result = await apply.json();
+      if (!apply.ok) throw new Error(result.error || "Metadaten konnten nicht übernommen werden.");
+      metadataDialog.close();
+      await loadData();
+      await showBook(book.id);
+    } catch (error) {
+      alert(error.message);
+      button.disabled = false;
+      button.textContent = "KI-Treffer übernehmen";
+    }
+  });
+
+  return card;
+}
+
+async function runAiMetadataSearch(book, button) {
+  if (button) {
+    button.disabled = true;
+    button.textContent = "KI recherchiert im Web …";
+  }
+  try {
+    const response = await fetch(api(`books/${book.id}/metadata-ai`), {method: "POST"});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "KI-Suche fehlgeschlagen.");
+    metadataCandidates.appendChild(renderAiCandidate(book, result));
+    if (button) button.remove();
+  } finally {
+    if (button && button.isConnected) {
+      button.disabled = false;
+      button.textContent = "Mit KI im Internet suchen";
+    }
+  }
+}
+
 async function showMetadataCandidates(book) {
   if (!metadataDialog || !metadataCandidates) {
     throw new Error("Die Metadaten-Auswahl konnte nicht geöffnet werden. Bitte die App aktualisieren und neu laden.");
@@ -658,15 +753,44 @@ async function showMetadataCandidates(book) {
 
   metadataCandidates.innerHTML = "<p>Metadaten werden gesucht …</p>";
   metadataDialog.showModal();
-  const response = await fetch(api(`books/${book.id}/metadata-candidates`));
+
+  const [response, statusResponse] = await Promise.all([
+    fetch(api(`books/${book.id}/metadata-candidates`)),
+    fetch(api(`books/${book.id}/metadata-provider-status`))
+  ]);
+
   if (!response.ok) throw new Error("Metadatensuche fehlgeschlagen.");
   const candidates = await response.json();
+
+  let providerStatus = null;
+  if (statusResponse.ok) {
+    providerStatus = await statusResponse.json();
+  }
+
+  metadataCandidates.innerHTML = "";
+
+  if (providerStatus && providerStatus.google_books) {
+    const info = document.createElement("div");
+    info.className = "metadata-provider-status";
+    const google = providerStatus.google_books;
+    info.textContent = google.count > 0
+      ? `Google Books: ${google.count} Treffer in der Testabfrage`
+      : "Google Books: keine Treffer in der Testabfrage";
+    metadataCandidates.appendChild(info);
+  }
+
   if (!candidates.length) {
-    metadataCandidates.innerHTML = "<p>Keine ausreichend passenden Treffer gefunden.</p>";
+    const empty = document.createElement("p");
+    empty.textContent = "Keine passenden Treffer gefunden.";
+    metadataCandidates.appendChild(empty);
     return;
   }
-  metadataCandidates.innerHTML = "";
   for (const candidate of candidates) {
+    if (candidate.metadata_source === "KI-Websuche") {
+      metadataCandidates.appendChild(renderAiCandidate(book, candidate));
+      continue;
+    }
+
     const card = document.createElement("article");
     card.className = "metadata-candidate";
     card.innerHTML = `
@@ -698,6 +822,22 @@ async function showMetadataCandidates(book) {
     });
     metadataCandidates.appendChild(card);
   }
+
+  if (appSettings.ai_enabled && appSettings.openai_api_key_configured) {
+    const aiButton = document.createElement("button");
+    aiButton.type = "button";
+    aiButton.className = "secondary ai-search-button";
+    aiButton.textContent = "Mit KI im Internet suchen";
+    aiButton.addEventListener("click", async () => {
+      try {
+        await runAiMetadataSearch(book, aiButton);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+    metadataCandidates.appendChild(aiButton);
+  }
+
 }
 
 async function uploadFiles(files) {
@@ -776,6 +916,7 @@ if (closeMetadata && metadataDialog) {
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();
   renderGenreManager();
+  populateAiSettings();
   settingsDialog.showModal();
 });
 closeSettingsDialog.addEventListener("click", () => settingsDialog.close());
@@ -814,6 +955,51 @@ genreForm.addEventListener("submit", async event => {
   await loadData();
   renderGenreManager();
 });
+
+
+if (aiSettingsForm) {
+  aiSettingsForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const payload = {
+      ai_enabled: aiEnabled.checked,
+      ai_mode: aiMode.value,
+      ai_model: aiModel.value.trim() || "gpt-5.4-mini"
+    };
+    if (openaiApiKey.value.trim()) {
+      payload.openai_api_key = openaiApiKey.value.trim();
+    }
+
+    const response = await fetch(api("settings"), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || "KI-Einstellungen konnten nicht gespeichert werden.");
+      return;
+    }
+    appSettings = result;
+    populateAiSettings();
+    alert("KI-Einstellungen gespeichert.");
+  });
+
+  clearApiKey.addEventListener("click", async () => {
+    if (!confirm("OpenAI API-Key wirklich entfernen?")) return;
+    const response = await fetch(api("settings"), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({clear_openai_api_key: true})
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || "API-Key konnte nicht entfernt werden.");
+      return;
+    }
+    appSettings = result;
+    populateAiSettings();
+  });
+}
 
 loadData().catch(error => {
   uploadStatus.classList.remove("hidden");

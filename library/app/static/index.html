@@ -86,6 +86,41 @@
         </form>
         <div id="genreList" class="series-list"></div>
       </section>
+
+      <section class="settings-section">
+        <h3>KI-Metadatensuche</h3>
+        <p class="settings-help">Optionaler Web-Fallback über die OpenAI API. Dabei können nutzungsabhängige API-Kosten entstehen.</p>
+
+        <form id="aiSettingsForm" class="edit-form">
+          <label class="setting-toggle">
+            <input id="aiEnabled" type="checkbox">
+            <span>KI-Suche aktivieren</span>
+          </label>
+
+          <label>OpenAI API-Key
+            <input id="openaiApiKey" type="password" autocomplete="off" placeholder="sk-…">
+          </label>
+          <p id="apiKeyStatus" class="settings-help"></p>
+
+          <div class="edit-grid">
+            <label>Automatische Verwendung
+              <select id="aiMode">
+                <option value="never">Nie automatisch</option>
+                <option value="fallback">Nur wenn normale Suche nichts findet</option>
+                <option value="always">Immer zusätzlich suchen</option>
+              </select>
+            </label>
+            <label>OpenAI-Modell
+              <input id="aiModel" value="gpt-5.4-mini">
+            </label>
+          </div>
+
+          <div class="edit-actions">
+            <button type="submit" class="primary">KI-Einstellungen speichern</button>
+            <button type="button" id="clearApiKey" class="secondary">API-Key entfernen</button>
+          </div>
+        </form>
+      </section>
     </div>
   </dialog>
 

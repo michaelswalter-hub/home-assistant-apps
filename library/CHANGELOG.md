@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.8.0
+
+- optionale KI-Metadatensuche mit OpenAI Responses API und Websuche
+- OpenAI API-Key in den Einstellungen hinterlegbar
+- KI-Modi: nie, nur als Fallback, immer zusätzlich
+- manueller Button „Mit KI im Internet suchen“ im Trefferdialog
+- KI-Treffer können wie normale Metadaten-Treffer übernommen werden
+- Quellen der KI-Webrecherche werden angezeigt
+- Zusammenfassungen können aus Webquellen gefunden oder daraus erstellt werden
+
+## 0.7.5
+
+- Google-Books-Abfrage korrigiert: ungültigen `hl`-Parameter entfernt
+- Google Books wird jetzt mit gültigen Books-API-Parametern abgefragt
+- Google-Treffer werden weiterhin neben Open Library ausgewogen angezeigt
+- Trefferdialog zeigt die Anzahl der Google-Books-Testtreffer an
+
+## 0.7.4
+
+- Serienkarten verwenden jetzt das Hochformat eines Buchcovers
+- das erste Seriencover wird im Seitenverhältnis 2:3 dargestellt
+
 ## 0.7.3
 
 - Metadaten-Treffer werden ausgewogen aus Google Books und Open Library angezeigt

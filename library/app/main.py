@@ -12,7 +12,8 @@ from uuid import uuid4
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
 from database import Database
-from metadata import download_cover, enrich_metadata, extract_local_metadata, search_metadata_candidates
+from ai_metadata import search_book_with_ai
+from metadata import download_cover, enrich_metadata, extract_local_metadata, search_metadata_candidates, metadata_provider_status
 
 DATA_DIR = Path(os.environ.get("LIBRARY_DATA_DIR", "/data/library"))
 BOOKS_DIR = DATA_DIR / "books"
@@ -84,7 +85,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.7.3"})
+    return jsonify({"status": "ok", "version": "0.8.0"})
 
 @app.get("/api/books")
 def list_books():
@@ -256,6 +257,49 @@ def edit_book(book_id: str):
 
 
 
+
+
+@app.post("/api/books/<book_id>/metadata-ai")
+def ai_metadata_search(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    api_key = db.get_setting("openai_api_key", "") or ""
+    ai_enabled = bool(db.get_setting("ai_enabled", False))
+    model = db.get_setting("ai_model", "gpt-5.4-mini") or "gpt-5.4-mini"
+
+    if not ai_enabled:
+        return jsonify({"error": "Die KI-Metadatensuche ist in den Einstellungen deaktiviert."}), 400
+    if not api_key:
+        return jsonify({"error": "Kein OpenAI API-Key hinterlegt."}), 400
+
+    try:
+        candidate = search_book_with_ai(
+            api_key=api_key,
+            title=book.get("title"),
+            author=book.get("author"),
+            isbn=book.get("isbn"),
+            model=model,
+        )
+        return jsonify(candidate)
+    except Exception as exc:
+        app.logger.exception("KI-Metadatensuche fehlgeschlagen")
+        return jsonify({"error": str(exc)}), 502
+
+@app.get("/api/books/<book_id>/metadata-provider-status")
+def metadata_status(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    local = {
+        "title": book.get("title"),
+        "author": book.get("author"),
+        "isbn": book.get("isbn"),
+    }
+    return jsonify(metadata_provider_status(local, METADATA_LANGUAGE))
+
 @app.get("/api/books/<book_id>/metadata-candidates")
 def metadata_candidates(book_id: str):
     book = db.get_book(book_id)
@@ -267,7 +311,36 @@ def metadata_candidates(book_id: str):
         "author": book.get("author"),
         "isbn": book.get("isbn"),
     }
-    candidates = search_metadata_candidates(local, METADATA_LANGUAGE, limit=10)
+    candidates = search_metadata_candidates(local, METADATA_LANGUAGE, limit=16)
+
+    ai_enabled = bool(db.get_setting("ai_enabled", False))
+    ai_mode = db.get_setting("ai_mode", "fallback") or "fallback"
+    api_key = db.get_setting("openai_api_key", "") or ""
+    ai_model = db.get_setting("ai_model", "gpt-5.4-mini") or "gpt-5.4-mini"
+
+    should_use_ai = (
+        ai_enabled
+        and bool(api_key)
+        and (
+            ai_mode == "always"
+            or (ai_mode == "fallback" and not candidates)
+        )
+    )
+
+    if should_use_ai:
+        try:
+            ai_candidate = search_book_with_ai(
+                api_key=api_key,
+                title=book.get("title"),
+                author=book.get("author"),
+                isbn=book.get("isbn"),
+                model=ai_model,
+            )
+            if ai_candidate:
+                candidates.append(ai_candidate)
+        except Exception:
+            app.logger.exception("Automatische KI-Metadatensuche fehlgeschlagen")
+
     return jsonify(candidates)
 
 @app.post("/api/books/<book_id>/metadata-candidates/apply")
@@ -468,11 +541,47 @@ def remove_genre(genre_id: str):
 
 @app.get("/api/settings")
 def get_settings():
-    return jsonify({})
+    api_key = db.get_setting("openai_api_key", "") or ""
+    return jsonify({
+        "ai_enabled": bool(db.get_setting("ai_enabled", False)),
+        "ai_mode": db.get_setting("ai_mode", "fallback"),
+        "ai_model": db.get_setting("ai_model", "gpt-5.4-mini"),
+        "openai_api_key_configured": bool(api_key),
+    })
 
 @app.patch("/api/settings")
 def update_settings():
-    return jsonify({})
+    data = request.get_json(silent=True) or {}
+
+    if "ai_enabled" in data:
+        db.set_setting("ai_enabled", bool(data.get("ai_enabled")))
+
+    if "ai_mode" in data:
+        mode = str(data.get("ai_mode") or "fallback")
+        if mode not in {"never", "fallback", "always"}:
+            return jsonify({"error": "Ungültiger KI-Modus."}), 400
+        db.set_setting("ai_mode", mode)
+
+    if "ai_model" in data:
+        model = str(data.get("ai_model") or "").strip()
+        if not model:
+            return jsonify({"error": "Das KI-Modell darf nicht leer sein."}), 400
+        db.set_setting("ai_model", model)
+
+    if data.get("clear_openai_api_key"):
+        db.set_setting("openai_api_key", "")
+    elif "openai_api_key" in data:
+        key = str(data.get("openai_api_key") or "").strip()
+        if key:
+            db.set_setting("openai_api_key", key)
+
+    api_key = db.get_setting("openai_api_key", "") or ""
+    return jsonify({
+        "ai_enabled": bool(db.get_setting("ai_enabled", False)),
+        "ai_mode": db.get_setting("ai_mode", "fallback"),
+        "ai_model": db.get_setting("ai_model", "gpt-5.4-mini"),
+        "openai_api_key_configured": bool(api_key),
+    })
 
 @app.get("/api/series")
 def list_series():

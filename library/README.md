@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.7.3
+## Version 0.8.0
 
 Die erste Version unterstützt:
 
@@ -161,3 +161,17 @@ Genres werden jetzt ausschließlich in den Einstellungen verwaltet:
 - Sternefilter in der Bücherübersicht
 - Klick auf denselben Filterstern hebt den Filter wieder auf
 - breitere Metadatensuche mit bereinigten Titeln, Untertiteln/Serienzusätzen und Autorvarianten
+
+
+## KI-Metadatensuche ab 0.8.0
+
+Optional kann in den Einstellungen ein OpenAI API-Key hinterlegt werden.
+
+Modi:
+- Nie automatisch
+- Nur wenn normale Suche nichts findet
+- Immer zusätzlich suchen
+
+Im Metadaten-Trefferdialog kann die KI-Suche unabhängig vom Automatikmodus manuell gestartet werden, sofern sie aktiviert und ein API-Key hinterlegt ist.
+
+Die KI verwendet die OpenAI Responses API mit Websuche. Bibliografische Fakten sollen nur aus gefundenen Webquellen übernommen werden. Der API-Key wird lokal in der Bibliotheksdatenbank gespeichert und von der API der App niemals im Klartext an die Benutzeroberfläche zurückgegeben.

@@ -272,7 +272,12 @@ def _google_books_candidates(query: str, language: str = "de") -> list[dict]:
     try:
         data = _get_json(
             "https://www.googleapis.com/books/v1/volumes",
-            {"q": query, "maxResults": 10, "printType": "books", "hl": language},
+            {
+                "q": query,
+                "maxResults": 10,
+                "printType": "books",
+                "projection": "full",
+            },
         )
         results = []
         for item in data.get("items") or []:
@@ -577,6 +582,36 @@ def _fill_candidate_descriptions(candidates: list[dict], language: str = "de") -
 
     return candidates
 
+
+
+
+def metadata_provider_status(local: dict, language: str = "de") -> dict:
+    title = local.get("title")
+    author = local.get("author")
+    queries = []
+    if title and author:
+        queries.append(f"{title} {author}")
+    elif title:
+        queries.append(title)
+    elif author:
+        queries.append(author)
+
+    google_ok = False
+    google_count = 0
+    if queries:
+        try:
+            results = _google_books_candidates(queries[0], language)
+            google_count = len(results)
+            google_ok = True
+        except Exception:
+            google_ok = False
+
+    return {
+        "google_books": {
+            "ok": google_ok,
+            "count": google_count,
+        }
+    }
 
 
 def search_metadata_candidates(local: dict, language: str = "de", limit: int = 16) -> list[dict]:

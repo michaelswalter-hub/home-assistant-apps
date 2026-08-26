@@ -778,3 +778,64 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   font-size: 12px;
   font-weight: 700;
 }
+
+
+/* 0.7.4: Serienkarten im gleichen Hochformat wie Bücher */
+.series-card {
+  overflow: hidden;
+}
+.series-covers.single-cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  display: block;
+  background: var(--surface-2);
+}
+.series-covers.single-cover img,
+.series-covers.single-cover .series-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-right: 0;
+}
+
+
+.metadata-provider-status {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+
+.setting-toggle {
+  display: flex !important;
+  grid-template-columns: none !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px !important;
+  color: var(--text) !important;
+}
+.setting-toggle input {
+  width: 18px !important;
+  height: 18px;
+}
+.ai-candidate {
+  border-style: solid;
+}
+.ai-sources {
+  display: grid;
+  gap: 4px;
+  margin-top: 9px;
+  font-size: 12px;
+}
+.ai-sources a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.ai-search-button {
+  justify-self: start;
+  margin: 4px 0 12px;
+}
