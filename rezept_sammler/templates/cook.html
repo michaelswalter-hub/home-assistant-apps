@@ -14,10 +14,9 @@
     <input type="checkbox" onchange="this.closest('.step').classList.toggle('done',this.checked)">
     <span class="cook-step-content">
       <b>Schritt {{loop.index}}</b>
-      <p>{{s.text}}</p>
 
       {% if s.ingredient_groups %}
-      <div class="step-ingredients">
+      <div class="step-ingredients step-ingredients-before">
         <small>🥕 Zutaten für diesen Schritt</small>
         {% for group in s.ingredient_groups %}
         <div class="cook-ingredient-group">
@@ -31,6 +30,8 @@
         {% endfor %}
       </div>
       {% endif %}
+
+      <p class="cook-step-instruction">{{s.text}}</p>
 
       {% if s.seconds %}
       <button type="button" onclick="timer({{s.seconds}},'t{{loop.index}}')">⏱ Timer starten</button>

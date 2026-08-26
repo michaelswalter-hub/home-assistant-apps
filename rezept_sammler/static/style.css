@@ -405,3 +405,7 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .ingredients-head h2{margin:0}
 .ingredients-bring-button{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);text-decoration:none;font-size:13px;font-weight:750;white-space:nowrap}
 .cook-variant-badge{display:inline-flex;margin:0 0 8px;padding:6px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-weight:750;color:var(--accent)}
+
+/* 0.5.28 – Zutaten im Kochmodus vor dem Arbeitsschritt */
+.step-ingredients-before{margin-top:10px;margin-bottom:12px;padding-top:10px;padding-bottom:10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.cook-step-instruction{margin-top:0}
