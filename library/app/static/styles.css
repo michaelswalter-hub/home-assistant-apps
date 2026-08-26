@@ -839,3 +839,52 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   justify-self: start;
   margin: 4px 0 12px;
 }
+
+
+/* 0.8.1: Serienübersicht nutzt exakt dieselbe Rastergröße wie Bücher */
+.series-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 28px 22px;
+}
+.series-card {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  box-shadow: none;
+}
+.series-card:hover,
+.series-card:focus {
+  transform: none;
+  box-shadow: none;
+}
+.series-covers.single-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.series-card:hover .series-covers.single-cover,
+.series-card:focus .series-covers.single-cover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+.series-card-body {
+  padding: 10px 0 0;
+}
+.series-card h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.series-card p {
+  font-size: 13px;
+}
+.metadata-provider-status.error {
+  border-color: #e53935;
+}

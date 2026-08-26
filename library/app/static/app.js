@@ -34,13 +34,17 @@ const aiModel = document.getElementById("aiModel");
 const openaiApiKey = document.getElementById("openaiApiKey");
 const apiKeyStatus = document.getElementById("apiKeyStatus");
 const clearApiKey = document.getElementById("clearApiKey");
+const googleBooksSettingsForm = document.getElementById("googleBooksSettingsForm");
+const googleBooksApiKey = document.getElementById("googleBooksApiKey");
+const googleBooksKeyStatus = document.getElementById("googleBooksKeyStatus");
+const clearGoogleBooksApiKey = document.getElementById("clearGoogleBooksApiKey");
 
 let books = [];
 let series = [];
 let genres = [];
 let currentView = "books";
 let selectedRating = 0;
-let appSettings = {ai_enabled: false, ai_mode: "fallback", ai_model: "gpt-5.4-mini", openai_api_key_configured: false};
+let appSettings = {ai_enabled: false, ai_mode: "fallback", ai_model: "gpt-5.4-mini", openai_api_key_configured: false, google_books_api_key_configured: false};
 
 function api(path) {
   return `api/${path}`;
@@ -598,6 +602,15 @@ function renderSeriesManager() {
 
 
 
+
+function populateGoogleBooksSettings() {
+  if (!googleBooksSettingsForm) return;
+  googleBooksApiKey.value = "";
+  googleBooksKeyStatus.textContent = appSettings.google_books_api_key_configured
+    ? "Google Books API-Key ist hinterlegt."
+    : "Kein Google Books API-Key hinterlegt – öffentliche API wird verwendet.";
+}
+
 function populateAiSettings() {
   if (!aiSettingsForm) return;
   aiEnabled.checked = Boolean(appSettings.ai_enabled);
@@ -773,9 +786,12 @@ async function showMetadataCandidates(book) {
     const info = document.createElement("div");
     info.className = "metadata-provider-status";
     const google = providerStatus.google_books;
-    info.textContent = google.count > 0
-      ? `Google Books: ${google.count} Treffer in der Testabfrage`
-      : "Google Books: keine Treffer in der Testabfrage";
+    if (google.ok) {
+      info.textContent = `Google Books: HTTP ${google.status || 200} · ${google.count} angezeigte Treffer · ${google.total_items ?? 0} insgesamt${google.api_key_configured ? " · API-Key aktiv" : ""}`;
+    } else {
+      info.textContent = `Google Books Fehler${google.status ? ` HTTP ${google.status}` : ""}: ${google.error || "unbekannter Fehler"}${google.api_key_configured ? " · API-Key aktiv" : " · ohne API-Key"}`;
+      info.classList.add("error");
+    }
     metadataCandidates.appendChild(info);
   }
 
@@ -916,6 +932,7 @@ if (closeMetadata && metadataDialog) {
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();
   renderGenreManager();
+  populateGoogleBooksSettings();
   populateAiSettings();
   settingsDialog.showModal();
 });
@@ -956,6 +973,46 @@ genreForm.addEventListener("submit", async event => {
   renderGenreManager();
 });
 
+
+
+if (googleBooksSettingsForm) {
+  googleBooksSettingsForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const payload = {};
+    if (googleBooksApiKey.value.trim()) {
+      payload.google_books_api_key = googleBooksApiKey.value.trim();
+    }
+    const response = await fetch(api("settings"), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || "Google-Books-Einstellungen konnten nicht gespeichert werden.");
+      return;
+    }
+    appSettings = result;
+    populateGoogleBooksSettings();
+    alert("Google-Books-Einstellungen gespeichert.");
+  });
+
+  clearGoogleBooksApiKey.addEventListener("click", async () => {
+    if (!confirm("Google Books API-Key wirklich entfernen?")) return;
+    const response = await fetch(api("settings"), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({clear_google_books_api_key: true})
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || "Google Books API-Key konnte nicht entfernt werden.");
+      return;
+    }
+    appSettings = result;
+    populateGoogleBooksSettings();
+  });
+}
 
 if (aiSettingsForm) {
   aiSettingsForm.addEventListener("submit", async event => {

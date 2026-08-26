@@ -88,6 +88,21 @@
       </section>
 
       <section class="settings-section">
+        <h3>Google Books</h3>
+        <p class="settings-help">Google Books funktioniert meist ohne API-Key. Falls Home Assistant dort einen 403-/Quota-Fehler erhält, kannst du optional einen Google Books API-Key hinterlegen.</p>
+        <form id="googleBooksSettingsForm" class="edit-form">
+          <label>Google Books API-Key
+            <input id="googleBooksApiKey" type="password" autocomplete="off" placeholder="Optional">
+          </label>
+          <p id="googleBooksKeyStatus" class="settings-help"></p>
+          <div class="edit-actions">
+            <button type="submit" class="primary">Google-Books-Einstellungen speichern</button>
+            <button type="button" id="clearGoogleBooksApiKey" class="secondary">API-Key entfernen</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-section">
         <h3>KI-Metadatensuche</h3>
         <p class="settings-help">Optionaler Web-Fallback über die OpenAI API. Dabei können nutzungsabhängige API-Kosten entstehen.</p>
 

@@ -16,6 +16,12 @@ from pypdf import PdfReader
 
 USER_AGENT = "HomeAssistant-Library/0.1 (+private-library-app)"
 TIMEOUT = 12
+GOOGLE_BOOKS_API_KEY = ""
+
+
+def set_google_books_api_key(api_key: str | None) -> None:
+    global GOOGLE_BOOKS_API_KEY
+    GOOGLE_BOOKS_API_KEY = (api_key or "").strip()
 
 ISBN_RE = re.compile(
     r"(?<!\d)(?:ISBN(?:-1[03])?\s*:?\s*)?"
@@ -268,20 +274,36 @@ def _match_score(candidate: dict, title: str | None, author: str | None) -> floa
         score += 2
     return score
 
+
+def _google_books_request(query: str, max_results: int = 20) -> dict:
+    params = {
+        "q": query,
+        "maxResults": min(max(max_results, 1), 40),
+    }
+    if GOOGLE_BOOKS_API_KEY:
+        params["key"] = GOOGLE_BOOKS_API_KEY
+
+    response = requests.get(
+        "https://www.googleapis.com/books/v1/volumes",
+        params=params,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+        },
+        timeout=TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def _google_books_candidates(query: str, language: str = "de") -> list[dict]:
     try:
-        data = _get_json(
-            "https://www.googleapis.com/books/v1/volumes",
-            {
-                "q": query,
-                "maxResults": 10,
-                "printType": "books",
-                "projection": "full",
-            },
-        )
+        # Keep the request deliberately minimal. This avoids provider-specific
+        # filtering quirks and lets ranking happen locally in the app.
+        data = _google_books_request(query, max_results=20)
         results = []
         for item in data.get("items") or []:
-            info = item.get("volumeInfo", {})
+            info = item.get("volumeInfo") or {}
             identifiers = info.get("industryIdentifiers") or []
             isbn = None
             for identifier in identifiers:
@@ -326,6 +348,77 @@ def _google_books_candidates(query: str, language: str = "de") -> list[dict]:
         return results
     except Exception:
         return []
+
+
+def google_books_status(local: dict) -> dict:
+    title = local.get("title")
+    author = local.get("author")
+    isbn = local.get("isbn")
+
+    query = None
+    if isbn:
+        query = f"isbn:{isbn}"
+    elif title and author:
+        query = f"{title} {author}"
+    elif title:
+        query = title
+    elif author:
+        query = author
+
+    if not query:
+        return {
+            "ok": False,
+            "count": 0,
+            "status": None,
+            "error": "Titel und Autor fehlen.",
+            "api_key_configured": bool(GOOGLE_BOOKS_API_KEY),
+        }
+
+    params = {"q": query, "maxResults": 10}
+    if GOOGLE_BOOKS_API_KEY:
+        params["key"] = GOOGLE_BOOKS_API_KEY
+
+    try:
+        response = requests.get(
+            "https://www.googleapis.com/books/v1/volumes",
+            params=params,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            timeout=TIMEOUT,
+        )
+        status = response.status_code
+        if response.status_code >= 400:
+            error_text = None
+            try:
+                payload = response.json()
+                error_text = (payload.get("error") or {}).get("message")
+            except Exception:
+                error_text = response.text[:300] if response.text else None
+            return {
+                "ok": False,
+                "count": 0,
+                "status": status,
+                "error": error_text or f"HTTP {status}",
+                "api_key_configured": bool(GOOGLE_BOOKS_API_KEY),
+            }
+
+        payload = response.json()
+        return {
+            "ok": True,
+            "count": len(payload.get("items") or []),
+            "status": status,
+            "error": None,
+            "total_items": int(payload.get("totalItems") or 0),
+            "api_key_configured": bool(GOOGLE_BOOKS_API_KEY),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "count": 0,
+            "status": None,
+            "error": str(exc),
+            "api_key_configured": bool(GOOGLE_BOOKS_API_KEY),
+        }
+
 
 def _open_library_candidates(isbn: str | None, title: str | None, author: str | None) -> list[dict]:
     results = []
@@ -585,32 +678,10 @@ def _fill_candidate_descriptions(candidates: list[dict], language: str = "de") -
 
 
 
+
 def metadata_provider_status(local: dict, language: str = "de") -> dict:
-    title = local.get("title")
-    author = local.get("author")
-    queries = []
-    if title and author:
-        queries.append(f"{title} {author}")
-    elif title:
-        queries.append(title)
-    elif author:
-        queries.append(author)
-
-    google_ok = False
-    google_count = 0
-    if queries:
-        try:
-            results = _google_books_candidates(queries[0], language)
-            google_count = len(results)
-            google_ok = True
-        except Exception:
-            google_ok = False
-
     return {
-        "google_books": {
-            "ok": google_ok,
-            "count": google_count,
-        }
+        "google_books": google_books_status(local),
     }
 
 

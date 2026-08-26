@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.8.0
+## Version 0.8.1
 
 Die erste Version unterstützt:
 

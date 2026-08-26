@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1
+
+- Seriencover und Büchercover verwenden jetzt exakt dasselbe Raster und dieselbe Größe
+- Google-Books-Abfrage auf minimale, robuste API-Parameter umgestellt
+- Google-Books-Diagnose zeigt HTTP-Status und konkrete Fehlermeldung
+- optionaler Google Books API-Key in den Einstellungen
+- Google Books verwendet weiterhin die öffentliche API, wenn kein Key hinterlegt ist
+
 ## 0.8.0
 
 - optionale KI-Metadatensuche mit OpenAI Responses API und Websuche

@@ -13,7 +13,7 @@ from flask import Flask, jsonify, request, send_file, send_from_directory
 
 from database import Database
 from ai_metadata import search_book_with_ai
-from metadata import download_cover, enrich_metadata, extract_local_metadata, search_metadata_candidates, metadata_provider_status
+from metadata import download_cover, enrich_metadata, extract_local_metadata, search_metadata_candidates, metadata_provider_status, set_google_books_api_key
 
 DATA_DIR = Path(os.environ.get("LIBRARY_DATA_DIR", "/data/library"))
 BOOKS_DIR = DATA_DIR / "books"
@@ -30,6 +30,11 @@ ALLOWED_EXTENSIONS = {".epub", ".pdf"}
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def configure_metadata_providers() -> None:
+    set_google_books_api_key(db.get_setting("google_books_api_key", "") or "")
+
 
 def clean_filename(name: str) -> str:
     name = Path(name).name
@@ -85,7 +90,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.8.0"})
+    return jsonify({"status": "ok", "version": "0.8.1"})
 
 @app.get("/api/books")
 def list_books():
@@ -100,6 +105,7 @@ def get_book(book_id: str):
 
 @app.post("/api/books")
 def upload_book():
+    configure_metadata_providers()
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return jsonify({"error": "Keine Datei ausgewählt."}), 400
@@ -289,6 +295,7 @@ def ai_metadata_search(book_id: str):
 
 @app.get("/api/books/<book_id>/metadata-provider-status")
 def metadata_status(book_id: str):
+    configure_metadata_providers()
     book = db.get_book(book_id)
     if not book:
         return jsonify({"error": "Buch nicht gefunden."}), 404
@@ -302,6 +309,7 @@ def metadata_status(book_id: str):
 
 @app.get("/api/books/<book_id>/metadata-candidates")
 def metadata_candidates(book_id: str):
+    configure_metadata_providers()
     book = db.get_book(book_id)
     if not book:
         return jsonify({"error": "Buch nicht gefunden."}), 404
@@ -379,6 +387,7 @@ def apply_metadata_candidate(book_id: str):
 
 @app.post("/api/books/<book_id>/refresh-metadata")
 def refresh_metadata(book_id: str):
+    configure_metadata_providers()
     book = db.get_book(book_id)
     if not book:
         return jsonify({"error": "Buch nicht gefunden."}), 404
@@ -547,6 +556,7 @@ def get_settings():
         "ai_mode": db.get_setting("ai_mode", "fallback"),
         "ai_model": db.get_setting("ai_model", "gpt-5.4-mini"),
         "openai_api_key_configured": bool(api_key),
+        "google_books_api_key_configured": bool(db.get_setting("google_books_api_key", "") or ""),
     })
 
 @app.patch("/api/settings")
@@ -575,12 +585,20 @@ def update_settings():
         if key:
             db.set_setting("openai_api_key", key)
 
+    if data.get("clear_google_books_api_key"):
+        db.set_setting("google_books_api_key", "")
+    elif "google_books_api_key" in data:
+        google_key = str(data.get("google_books_api_key") or "").strip()
+        if google_key:
+            db.set_setting("google_books_api_key", google_key)
+
     api_key = db.get_setting("openai_api_key", "") or ""
     return jsonify({
         "ai_enabled": bool(db.get_setting("ai_enabled", False)),
         "ai_mode": db.get_setting("ai_mode", "fallback"),
         "ai_model": db.get_setting("ai_model", "gpt-5.4-mini"),
         "openai_api_key_configured": bool(api_key),
+        "google_books_api_key_configured": bool(db.get_setting("google_books_api_key", "") or ""),
     })
 
 @app.get("/api/series")
