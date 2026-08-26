@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bibliothek</title>
+  <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">HOME ASSISTANT</p>
+      <h1>Meine Bibliothek</h1>
+    </div>
+    <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
+    <input id="fileInput" type="file" accept=".epub,.pdf,application/epub+zip,application/pdf" multiple hidden>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <label class="search">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Titel oder Autor suchen …">
+      </label>
+      <div id="bookCount" class="count"></div>
+    </section>
+
+    <section id="uploadStatus" class="upload-status hidden"></section>
+    <section id="emptyState" class="empty hidden">
+      <div class="empty-icon">▤</div>
+      <h2>Noch keine Bücher</h2>
+      <p>Lade eine EPUB- oder PDF-Datei hoch. Metadaten und Cover werden soweit möglich automatisch ergänzt.</p>
+      <button id="emptyUploadButton" class="primary">Erstes Buch hinzufügen</button>
+    </section>
+
+    <section id="libraryGrid" class="grid" aria-live="polite"></section>
+  </main>
+
+  <dialog id="detailDialog">
+    <button id="closeDialog" class="icon-button close" aria-label="Schließen">×</button>
+    <div id="detailContent"></div>
+  </dialog>
+
+  <template id="bookTemplate">
+    <article class="book-card" tabindex="0">
+      <div class="cover-wrap">
+        <img class="cover" alt="">
+        <div class="cover-fallback">Buch</div>
+        <span class="format-badge"></span>
+      </div>
+      <h2 class="book-title"></h2>
+      <p class="book-author"></p>
+    </article>
+  </template>
+
+  <script src="static/app.js"></script>
+</body>
+</html>
