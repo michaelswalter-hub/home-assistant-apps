@@ -373,3 +373,17 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .cook-ingredient-group{margin-top:9px}
 .cook-ingredient-group>strong{display:block;margin-bottom:6px;color:var(--accent);font-size:13px}
 .cook-ingredient-group+.cook-ingredient-group{padding-top:8px;border-top:1px dashed var(--border)}
+
+/* 0.5.23 – Rezept aus vorhandenen Zutaten */
+.pantry-option{border-color:#cfe8d7!important}
+.pantry-form textarea{min-height:210px}
+.ai-working{display:flex;align-items:center;gap:10px;margin:10px 0;padding:11px 13px;border-radius:13px;background:var(--bg);border:1px solid var(--border)}
+.ai-working[hidden]{display:none}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 0.5.24 – Rezeptvarianten */
+.recipe-variant-switcher{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:10px 0 14px}
+.variant-label{font-size:12px;font-weight:800;color:var(--muted)}
+.variant-pill{display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);text-decoration:none;font-size:13px;font-weight:700}
+.variant-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}

@@ -76,6 +76,19 @@ def init_db():
         is_cover INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT '',
         UNIQUE(recipe_id, filename))""")
+    con.execute("""CREATE TABLE IF NOT EXISTS recipe_variants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recipe_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        prompt TEXT NOT NULL DEFAULT '',
+        ingredients TEXT NOT NULL DEFAULT '',
+        steps TEXT NOT NULL DEFAULT '',
+        servings TEXT NOT NULL DEFAULT '',
+        prep_minutes INTEGER NOT NULL DEFAULT 0,
+        cook_minutes INTEGER NOT NULL DEFAULT 0,
+        total_minutes INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT ''
+    )""")
     con.execute("""CREATE TABLE IF NOT EXISTS ingredient_state (
         recipe_id INTEGER NOT NULL,
         ingredient TEXT NOT NULL,
@@ -613,9 +626,205 @@ def index():
     routes = {
         "new": recipe_add_menu, "create": new_recipe, "pdf_import": pdf_import, "recipe": recipe_detail, "edit": edit_recipe,
         "delete": delete_recipe, "note": add_note, "cook": cook_mode,
-        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "ingredient_toggle": ingredient_toggle, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe,
+        "books": books, "book": book_detail, "book_new": book_new, "book_rename": book_rename, "book_delete": book_delete, "book_cover": book_cover, "tags": tags, "tag_new": tag_new, "tag_rename": tag_rename, "tag_delete": tag_delete, "settings": settings_page, "scan": scan_recipe, "ai_image": recipe_ai_image, "nutrition": recipe_nutrition, "bring": recipe_bring, "ingredient_toggle": ingredient_toggle, "own_images": recipe_own_images, "image_cover": recipe_image_cover, "image_delete": recipe_image_delete, "week": week_plan, "import": import_recipe, "pantry": pantry_recipe, "variant_new": recipe_variant_new,
     }
     return routes[view]() if view in routes else recipe_list()
+
+def ai_recipe_from_pantry(ingredients, wishes=""):
+    settings=load_settings()
+    clean=[x.strip() for x in ingredients if x.strip()]
+    if not clean:
+        raise ValueError("Bitte mindestens eine vorhandene Zutat eingeben.")
+
+    prompt="""Erstelle aus den vorhandenen Zutaten ein alltagstaugliches Rezept.
+Verwende möglichst die angegebenen Zutaten. Grundzutaten wie Salz, Pfeffer, Wasser und etwas Öl
+dürfen ergänzt werden. Wenn eine wichtige Zutat fehlt, nenne sie nur dann, wenn das Rezept sonst
+nicht sinnvoll möglich ist.
+
+Gib ausschließlich valides JSON zurück:
+{
+  "title":"Rezeptname",
+  "ingredients":["eine Zutatenzeile pro Eintrag"],
+  "steps":["ein Arbeitsschritt pro Eintrag"],
+  "servings":"z. B. 2 Portionen",
+  "prep_minutes":0,
+  "cook_minutes":0,
+  "total_minutes":0
+}
+Vorhandene Zutaten:
+- """+"\n- ".join(clean)
+
+    if wishes.strip():
+        prompt+="\n\nZusätzliche Wünsche: "+wishes.strip()
+
+    result=openai_json("/responses",{
+        "model":settings.get("text_model") or "gpt-5",
+        "input":prompt
+    },timeout=90)
+    obj=parse_json_text(response_text(result))
+    return {
+        "title":str(obj.get("title","")).strip(),
+        "ingredients":[str(x).strip() for x in (obj.get("ingredients") or []) if str(x).strip()],
+        "steps":[str(x).strip() for x in (obj.get("steps") or []) if str(x).strip()],
+        "servings":str(obj.get("servings","")).strip(),
+        "prep_minutes":int(obj.get("prep_minutes",0) or 0),
+        "cook_minutes":int(obj.get("cook_minutes",0) or 0),
+        "total_minutes":int(obj.get("total_minutes",0) or 0),
+    }
+
+def pantry_recipe():
+    preview=None
+    error=""
+    pantry_text=request.form.get("pantry_ingredients","")
+    wishes=request.form.get("wishes","")
+
+    if request.method=="POST":
+        action=request.form.get("action","generate")
+
+        if action=="generate":
+            try:
+                pantry=[x.strip(" •-\t") for x in pantry_text.splitlines() if x.strip(" •-\t")]
+                preview=ai_recipe_from_pantry(pantry,wishes)
+            except Exception as exc:
+                error=str(exc)
+
+        elif action=="save":
+            title=request.form.get("title","").strip()
+            if not title:
+                error="Bitte einen Rezeptnamen eingeben."
+            else:
+                con=db()
+                cur=con.execute("""INSERT INTO recipes
+                    (title,ingredients,steps,book,created_at,image,image_source,source_url,source_name,
+                     servings,prep_minutes,cook_minutes,total_minutes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        title,
+                        request.form.get("ingredients","").strip(),
+                        request.form.get("steps","").strip(),
+                        "",
+                        datetime.now().isoformat(),
+                        "","","","KI aus vorhandenen Zutaten",
+                        request.form.get("servings","").strip(),
+                        int_form("prep_minutes"),
+                        int_form("cook_minutes"),
+                        int_form("total_minutes")
+                    ))
+                rid=cur.lastrowid
+                for cid in request.form.getlist("cookbooks"):
+                    try:
+                        con.execute("INSERT OR IGNORE INTO recipe_cookbooks VALUES(?,?)",(rid,int(cid)))
+                    except Exception:
+                        pass
+                for tid in request.form.getlist("tags"):
+                    try:
+                        con.execute("INSERT OR IGNORE INTO recipe_tags VALUES(?,?)",(rid,int(tid)))
+                    except Exception:
+                        pass
+                con.commit(); con.close()
+                return redirect(f"?view=recipe&id={rid}")
+
+    con=db()
+    cookbooks=con.execute("SELECT * FROM cookbooks ORDER BY name COLLATE NOCASE").fetchall()
+    tags=con.execute("SELECT * FROM tags ORDER BY name COLLATE NOCASE").fetchall()
+    con.close()
+    return render_template(
+        "pantry.html",preview=preview,error=error,
+        pantry_text=pantry_text,wishes=wishes,cookbooks=cookbooks,tags=tags
+    )
+
+def ai_recipe_variant(recipe, change_request):
+    settings=load_settings()
+    request_text=str(change_request or "").strip()
+    if not request_text:
+        raise ValueError("Bitte beschreibe, was am Rezept geändert werden soll.")
+
+    prompt=f"""Passe dieses bestehende Rezept nach dem Wunsch des Nutzers an.
+Das Original bleibt erhalten; du erzeugst nur eine alternative Version.
+
+Originaltitel: {recipe["title"]}
+Original-Portionen: {recipe["servings"] or ""}
+Original-Zutaten:
+{recipe["ingredients"] or ""}
+
+Original-Zubereitung:
+{recipe["steps"] or ""}
+
+Gewünschte Änderung:
+{request_text}
+
+Gib ausschließlich valides JSON zurück:
+{{
+  "name":"kurzer Name der Variante",
+  "ingredients":["eine Zutatenzeile pro Eintrag; bestehende Rubriken als **Für ...** eigene Einträge erhalten"],
+  "steps":["ein vollständiger Arbeitsschritt pro Eintrag"],
+  "servings":"Portionsangabe",
+  "prep_minutes":0,
+  "cook_minutes":0,
+  "total_minutes":0
+}}
+
+Passe nur so viel an wie nötig. Wenn eine Zutat ersetzt wird, verwende eine sinnvolle Alternative und passe die Schritte entsprechend an."""
+    result=openai_json("/responses",{
+        "model":settings.get("text_model") or "gpt-5",
+        "input":prompt
+    },timeout=90)
+    obj=parse_json_text(response_text(result))
+    return {
+        "name":str(obj.get("name") or request_text[:40] or "KI-Variante").strip(),
+        "ingredients":[str(x).strip() for x in (obj.get("ingredients") or []) if str(x).strip()],
+        "steps":[str(x).strip() for x in (obj.get("steps") or []) if str(x).strip()],
+        "servings":str(obj.get("servings") or recipe["servings"] or "").strip(),
+        "prep_minutes":int(obj.get("prep_minutes",recipe["prep_minutes"] or 0) or 0),
+        "cook_minutes":int(obj.get("cook_minutes",recipe["cook_minutes"] or 0) or 0),
+        "total_minutes":int(obj.get("total_minutes",recipe["total_minutes"] or 0) or 0),
+    }
+
+def recipe_variant_new():
+    rid=request.args.get("id",type=int)
+    error=""
+    preview=None
+    request_text=request.form.get("change_request","")
+
+    con=db()
+    recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not recipe:
+        con.close()
+        return redirect("./")
+
+    if request.method=="POST":
+        action=request.form.get("action","generate")
+
+        if action=="generate":
+            try:
+                preview=ai_recipe_variant(recipe,request_text)
+            except Exception as exc:
+                error=str(exc)
+
+        elif action=="save":
+            name=request.form.get("variant_name","").strip() or "KI-Variante"
+            ingredients=request.form.get("ingredients","").strip()
+            steps=request.form.get("steps","").strip()
+            servings=request.form.get("servings","").strip()
+            con.execute("""INSERT INTO recipe_variants
+                (recipe_id,name,prompt,ingredients,steps,servings,prep_minutes,cook_minutes,total_minutes,created_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?)""",(
+                    rid,name,request_text,ingredients,steps,servings,
+                    int_form("prep_minutes"),int_form("cook_minutes"),int_form("total_minutes"),
+                    datetime.now().isoformat()
+                ))
+            con.commit()
+            con.close()
+            return redirect(f"?view=recipe&id={rid}")
+
+    variants=con.execute(
+        "SELECT * FROM recipe_variants WHERE recipe_id=? ORDER BY id",(rid,)
+    ).fetchall()
+    con.close()
+    return render_template(
+        "variant_new.html",recipe=recipe,preview=preview,error=error,
+        change_request=request_text,variants=variants
+    )
 
 def recipe_add_menu():
     return render_template("add_recipe.html")
@@ -749,6 +958,16 @@ def recipe_detail():
     if not r:
         con.close()
         return redirect("./")
+
+    variants=con.execute(
+        "SELECT * FROM recipe_variants WHERE recipe_id=? ORDER BY id",(rid,)
+    ).fetchall()
+    variant_id=request.args.get("variant",type=int)
+    selected_variant=None
+    if variant_id:
+        selected_variant=con.execute(
+            "SELECT * FROM recipe_variants WHERE id=? AND recipe_id=?",(variant_id,rid)
+        ).fetchone()
     notes=con.execute("SELECT * FROM notes WHERE recipe_id=? ORDER BY cooked_at DESC,id DESC",(rid,)).fetchall()
     cookbook_names=[x["name"] for x in con.execute("""SELECT c.name FROM cookbooks c
         JOIN recipe_cookbooks rc ON rc.cookbook_id=c.id
@@ -765,7 +984,7 @@ def recipe_detail():
     con.close()
     return render_template("recipe.html",recipe=r,notes=notes,safe_date=safe_date,
         cookbook_names=cookbook_names,tag_names=[x["name"] for x in recipe_tags],
-        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections,checked_ingredients=checked_ingredients,base_servings=base_servings)
+        recipe_tags=recipe_tags,gallery=gallery,ingredient_sections=ingredient_sections,checked_ingredients=checked_ingredients,base_servings=base_servings,variants=variants,selected_variant=selected_variant)
 
 def edit_recipe():
     rid=request.args.get("id",type=int)
@@ -1145,61 +1364,98 @@ def recipe_bring():
     rid=request.args.get("id",type=int)
     error=""
     success=""
+    selected_entity=""
+    ingredients=[]
+    todo_entities=[]
     recipe=None
-    checked=set()
+    con=None
 
     try:
+        if not rid:
+            raise ValueError("Rezept-ID fehlt.")
+
         con=db()
         ensure_ingredient_state_table(con)
         recipe=con.execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
         if not recipe:
-            con.close()
-            return redirect("./")
-        checked={x["ingredient"] for x in con.execute(
-            "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)).fetchall()}
-        con.close()
+            raise ValueError("Rezept wurde nicht gefunden.")
+
+        checked_rows=con.execute(
+            "SELECT ingredient FROM ingredient_state WHERE recipe_id=? AND checked=1",(rid,)
+        ).fetchall()
+        checked={str(x["ingredient"] or "").strip() for x in checked_rows}
+        con.close(); con=None
+
+        raw_ingredients=str(recipe["ingredients"] or "")
+        all_ingredients=[]
+        for raw in raw_ingredients.splitlines():
+            line=raw.strip()
+            if not line or re.fullmatch(r"-{3,}",line):
+                continue
+            if re.fullmatch(r"\*\*(.+?)\*\*",line):
+                continue
+            all_ingredients.append(line)
+        ingredients=[x for x in all_ingredients if x not in checked]
+
+        # A broken/old saved setting must never crash the page.
+        settings=load_settings() or {}
+        saved_entity=str(settings.get("bring_entity") or "").strip()
+
+        try:
+            rows=ha_todo_entities() or []
+            todo_entities=[
+                {
+                    "entity_id":str((x or {}).get("entity_id") or "").strip(),
+                    "name":str((x or {}).get("name") or (x or {}).get("entity_id") or "").strip()
+                }
+                for x in rows if isinstance(x,dict) and str(x.get("entity_id") or "").startswith("todo.")
+            ]
+        except Exception as exc:
+            todo_entities=[]
+            error="Home-Assistant-Listen konnten nicht geladen werden: "+str(exc)
+
+        selected_entity=(
+            str(request.form.get("bring_entity") or "").strip()
+            if request.method=="POST" else saved_entity
+        )
+
+        if request.method=="POST" and not error:
+            valid_ids={x["entity_id"] for x in todo_entities}
+            if not selected_entity:
+                error="Bitte eine Einkaufsliste auswählen."
+            elif selected_entity not in valid_ids:
+                error="Die gewählte Einkaufsliste ist nicht mehr verfügbar. Bitte erneut auswählen."
+            elif not ingredients:
+                error="Alle Zutaten sind bereits als vorhanden markiert."
+            else:
+                try:
+                    count=bring_add_items(selected_entity,ingredients)
+                    current=load_settings() or {}
+                    current["bring_entity"]=selected_entity
+                    save_settings(current)
+                    success=f"{count} Zutaten wurden zur Einkaufsliste hinzugefügt."
+                except Exception as exc:
+                    error=str(exc)
+
     except Exception as exc:
-        try: con.close()
-        except: pass
-        return render_template("bring.html",
-            recipe={"id":rid,"title":"Rezept"},
-            ingredients=[],error=f"Datenbankfehler: {exc}",success="",
-            todo_entities=[],selected_entity="")
+        error=str(exc)
+    finally:
+        if con is not None:
+            try: con.close()
+            except Exception: pass
 
-    settings=load_settings()
-    try:
-        todo_entities=ha_todo_entities()
-    except Exception as exc:
-        todo_entities=[]
-        error=f"Home-Assistant-Listen konnten nicht geladen werden: {exc}"
-
-    all_ingredients=[x.strip() for x in (recipe["ingredients"] or "").splitlines()
-                     if x.strip() and not re.fullmatch(r"-{3,}",x.strip())
-                     and not re.fullmatch(r"\*\*(.+?)\*\*",x.strip())]
-    ingredients=[x for x in all_ingredients if x not in checked]
-
-    selected_entity=(request.form.get("bring_entity","").strip()
-                     if request.method=="POST"
-                     else settings.get("bring_entity","").strip())
-
-    if request.method=="POST" and not error:
-        if not selected_entity:
-            error="Bitte zuerst eine Einkaufsliste auswählen."
-        elif not ingredients:
-            error="Alle Zutaten sind bereits als vorhanden markiert."
-        else:
-            try:
-                count=bring_add_items(selected_entity,ingredients)
-                current=load_settings()
-                current["bring_entity"]=selected_entity
-                save_settings(current)
-                success=f"{count} Zutaten wurden zur Einkaufsliste hinzugefügt."
-            except Exception as exc:
-                error=str(exc)
-
-    return render_template("bring.html",
-        recipe=recipe,ingredients=ingredients,error=error,success=success,
-        todo_entities=todo_entities,selected_entity=selected_entity)
+    # Always render a valid page instead of propagating a server error.
+    if recipe is None:
+        recipe={"id":rid or 0,"title":"Rezept"}
+    return render_template(
+        "bring.html",
+        recipe=recipe,
+        ingredients=ingredients,
+        error=error,
+        success=success,
+        todo_entities=todo_entities,
+        selected_entity=selected_entity
+    )
 
 
 def recipe_own_images():

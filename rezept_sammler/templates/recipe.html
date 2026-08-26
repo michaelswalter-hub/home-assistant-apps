@@ -1,6 +1,15 @@
 {% extends "base.html" %}{% block content %}
+
+{% set display_ingredients = selected_variant.ingredients if selected_variant else recipe.ingredients %}
+{% set display_steps = selected_variant.steps if selected_variant else recipe.steps %}
+{% set display_servings = selected_variant.servings if selected_variant else recipe.servings %}
+{% set display_prep = selected_variant.prep_minutes if selected_variant else recipe.prep_minutes %}
+{% set display_cook = selected_variant.cook_minutes if selected_variant else recipe.cook_minutes %}
+{% set display_total = selected_variant.total_minutes if selected_variant else recipe.total_minutes %}
+
 <article class="card detail">
 <div class="pad"><h1>{{recipe.title}}</h1>
+<a class="button" href="?view=variant_new&id={{recipe.id}}">✨ Mit KI anpassen</a>
 <div class="recipe-actionbar">
   
   <a class="action-mini" href="?view=cook&id={{recipe.id}}"><span>👨‍🍳</span><b>Kochmodus</b></a>
@@ -27,11 +36,22 @@
 <section class="recipe-facts">
   {% if recipe.prep_minutes or recipe.cook_minutes or recipe.total_minutes %}
   <div class="fact-card"><span>⏱️</span><div><small>Zeit</small>
-    {% if recipe.total_minutes %}<b>{{human_minutes(recipe.total_minutes)}}</b>
+    
+{% if variants %}
+<div class="recipe-variant-switcher">
+  <span class="variant-label">Version:</span>
+  <a class="variant-pill {% if not selected_variant %}active{% endif %}" href="?view=recipe&id={{recipe.id}}">Original</a>
+  {% for v in variants %}
+  <a class="variant-pill {% if selected_variant and selected_variant.id==v.id %}active{% endif %}"
+     href="?view=recipe&id={{recipe.id}}&variant={{v.id}}">{{v.name}}</a>
+  {% endfor %}
+</div>
+{% endif %}
+{% if recipe.total_minutes %}<b>{{human_minutes(display_total)}}</b>
     {% elif recipe.prep_minutes or recipe.cook_minutes %}<b>{{human_minutes((recipe.prep_minutes or 0)+(recipe.cook_minutes or 0))}}</b>{% endif %}
     <em>{% if recipe.prep_minutes %}Vorbereitung {{human_minutes(recipe.prep_minutes)}}{% endif %}{% if recipe.cook_minutes %} · Kochen {{human_minutes(recipe.cook_minutes)}}{% endif %}</em>
   </div></div>{% endif %}
-  {% if recipe.servings %}<div class="fact-card"><span>👥</span><div><small>Portionen</small><b>{{recipe.servings}}</b></div></div>{% endif %}
+  {% if recipe.servings %}<div class="fact-card"><span>👥</span><div><small>Portionen</small><b>{{display_servings}}</b></div></div>{% endif %}
   {% if recipe.calories_serving %}<div class="fact-card"><span>🔥</span><div><small>Kalorien</small><b>{{recipe.calories_serving|round|int}} kcal</b><em>pro Portion</em></div></div>{% endif %}
 </section>
 
@@ -87,7 +107,7 @@
 <section class="card pad">
 <h2>👨‍🍳 Zubereitung</h2>
 <div class="recipe-step-list">
-{% for x in recipe.steps.splitlines() if x.strip() %}
+{% for x in display_steps.splitlines() if x.strip() %}
   <div class="recipe-step-card">
     <div class="recipe-step-number">{{loop.index}}</div>
     <div class="recipe-step-text">{{x}}</div>
