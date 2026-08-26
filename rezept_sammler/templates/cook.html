@@ -7,6 +7,25 @@
 <a href="?view=recipe&id={{recipe.id}}{% if selected_variant %}&variant={{selected_variant.id}}{% endif %}">← Zurück</a>
 </section>
 
+{% if unmatched_ingredient_groups %}
+<section class="cook-unassigned-ingredients">
+  <div class="cook-unassigned-head">
+    <small>🥕 ZUTATEN OHNE ZUGEORDNETEN SCHRITT</small>
+    <span>Für das Rezept bereithalten</span>
+  </div>
+  {% for group in unmatched_ingredient_groups %}
+  <div class="cook-ingredient-group">
+    {% if group["title"] %}<strong>{{group["title"]}}</strong>{% endif %}
+    <div class="step-ingredient-list">
+      {% for ingredient in group["items"] %}
+      <span>{{ingredient}}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
 <div class="cook-step-list">
 {% for s in steps %}
 <section class="step cook-step-card" id="step{{loop.index}}">

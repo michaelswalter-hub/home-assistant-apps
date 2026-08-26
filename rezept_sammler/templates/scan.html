@@ -37,6 +37,15 @@ document.querySelector('.photo-scan-form')?.addEventListener('submit',e=>{
 </div>
 
 {% if preview.servings %}<div class="notice">👥 {{preview.servings}}</div>{% endif %}
+<input type="hidden" name="calories_total" value="{{preview.calories_total or 0}}">
+<input type="hidden" name="calories_serving" value="{{preview.calories_serving or 0}}">
+<input type="hidden" name="protein_g" value="{{preview.protein_g or 0}}">
+<input type="hidden" name="carbs_g" value="{{preview.carbs_g or 0}}">
+<input type="hidden" name="fat_g" value="{{preview.fat_g or 0}}">
+<input type="hidden" name="fiber_g" value="{{preview.fiber_g or 0}}">
+{% if preview.calories_serving %}
+<div class="notice">🥗 Geschätzt: {{preview.calories_serving|round|int}} kcal pro Portion</div>
+{% endif %}
 <label>Kochbücher</label><div class="choice-pills">{% for b in cookbooks %}<label><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>📚 {{b.name}}</span></label>{% endfor %}</div>
 <label>Tags</label><div class="choice-pills">{% for t in tags %}<label><input type="checkbox" name="tags" value="{{t.id}}"><span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span></label>{% endfor %}</div>
 <div class="import-columns">

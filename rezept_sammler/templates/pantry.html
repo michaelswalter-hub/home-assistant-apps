@@ -1,0 +1,96 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">KI-REZEPT</p>
+    <h1>🥕 Aus vorhandenen Zutaten</h1>
+    <p class="subtle">Schreibe auf, was du zu Hause hast. Die KI macht daraus einen Rezeptvorschlag.</p>
+  </div>
+</div>
+
+{% if error %}<div class="notice error">{{error}}</div>{% endif %}
+
+{% if not preview %}
+<section class="panel form-card">
+<form method="post" class="pantry-form" onsubmit="pantryWorking(this)">
+  <input type="hidden" name="action" value="generate">
+  <label>Vorhandene Zutaten</label>
+  <textarea name="pantry_ingredients" rows="10" required
+    placeholder="z. B.&#10;Kartoffeln&#10;2 Eier&#10;Zwiebel&#10;Paprika&#10;Käse">{{pantry_text}}</textarea>
+  <p class="field-help">Eine Zutat pro Zeile. Mengen sind optional.</p>
+
+  <label>Wünsche <span class="subtle">(optional)</span></label>
+  <input name="wishes" value="{{wishes}}" placeholder="z. B. vegetarisch, schnell, für 2 Personen">
+
+  <div id="pantry-progress" class="ai-working" hidden>
+    <span class="spinner"></span>
+    <b>KI erstellt dein Rezept …</b>
+  </div>
+
+  <div class="form-actions">
+    <a class="secondary" href="?view=new">Abbrechen</a>
+    <button class="primary" id="pantry-submit">✨ Rezept vorschlagen</button>
+  </div>
+</form>
+</section>
+{% else %}
+<section class="panel form-card">
+<form method="post">
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="pantry_ingredients" value="{{pantry_text}}">
+  <input type="hidden" name="wishes" value="{{wishes}}">
+
+  <label>Rezeptname</label>
+  <input name="title" value="{{preview.title}}" required>
+
+  <div class="meta-grid import-meta">
+    <div><label>Portionen</label><input name="servings" value="{{preview.servings}}"></div>
+    <div><label>Vorbereitung (Min.)</label><input type="number" min="0" name="prep_minutes" value="{{preview.prep_minutes}}"></div>
+    <div><label>Kochen (Min.)</label><input type="number" min="0" name="cook_minutes" value="{{preview.cook_minutes}}"></div>
+    <div><label>Gesamt (Min.)</label><input type="number" min="0" name="total_minutes" value="{{preview.total_minutes}}"></div>
+  </div>
+
+  <label>Zutaten</label>
+  <textarea name="ingredients" rows="10">{{preview.ingredients|join('\n')}}</textarea>
+
+  <label>Zubereitung</label>
+  <textarea name="steps" rows="10">{{preview.steps|join('\n')}}</textarea>
+
+  {% if cookbooks %}
+  <label>Kochbücher</label>
+  <div class="choice-pills">
+    {% for b in cookbooks %}
+    <label class="filter-chip"><input type="checkbox" name="cookbooks" value="{{b.id}}"><span>{{b.name}}</span></label>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if tags %}
+  <label>Tags</label>
+  <div class="tag-picker">
+    {% for t in tags %}
+    <label class="tag-choice" style="--tag-color:{{t.color or '#5b7cfa'}}">
+      <input type="checkbox" name="tags" value="{{t.id}}">
+      <span class="tag-pill" style="--tag-color:{{t.color or '#5b7cfa'}}"># {{t.name}}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" name="action" value="generate" class="secondary">↻ Neu vorschlagen</button>
+    <a class="secondary" href="?view=new">Abbrechen</a>
+    <button class="primary" type="submit">Speichern</button>
+  </div>
+</form>
+</section>
+{% endif %}
+
+<script>
+function pantryWorking(form){
+  const p=document.getElementById('pantry-progress');
+  const b=document.getElementById('pantry-submit');
+  if(p)p.hidden=false;
+  if(b){b.disabled=true;b.textContent='Bitte warten …';}
+}
+</script>
+{% endblock %}

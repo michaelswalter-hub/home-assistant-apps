@@ -2102,6 +2102,21 @@ def cook_mode():
                 "ingredient_groups":groups
             })
 
+        used_ingredients=set()
+        for step in steps:
+            for group in step.get("ingredient_groups",[]):
+                for item in group.get("items",[]):
+                    used_ingredients.add(str(item).strip())
+
+        unmatched_ingredient_groups=[]
+        for group in ingredient_groups(ingredient_text):
+            missing=[item for item in group.get("items",[]) if str(item).strip() not in used_ingredients]
+            if missing:
+                unmatched_ingredient_groups.append({
+                    "title":group.get("title",""),
+                    "items":missing
+                })
+
         con.close()
         con=None
         return render_template(
@@ -2109,7 +2124,8 @@ def cook_mode():
             recipe=recipe,
             steps=steps,
             selected_variant=selected_variant,
-            display_total=display_total
+            display_total=display_total,
+            unmatched_ingredient_groups=unmatched_ingredient_groups
         )
 
     except Exception as exc:

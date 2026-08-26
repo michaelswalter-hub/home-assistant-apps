@@ -35,6 +35,13 @@
 <div>
 <label>Rezeptname</label>
 <input name="title" required value="{{preview.title}}">
+<div class="meta-grid import-meta">
+<div><label>Portionen</label><input name="servings" value="{{preview.servings}}"></div>
+<div><label>Vorbereitung (Min.)</label><input type="number" min="0" name="prep_minutes" value="{{preview.prep_minutes or 0}}"></div>
+<div><label>Kochzeit (Min.)</label><input type="number" min="0" name="cook_minutes" value="{{preview.cook_minutes or 0}}"></div>
+<div><label>Gesamtzeit (Min.)</label><input type="number" min="0" name="total_minutes" value="{{preview.total_minutes or 0}}"></div>
+</div>
+
 </div>
 <div>
 <label>Quelle</label>
