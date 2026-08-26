@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.2
+
+- Open-Library-Treffer werden bei fehlender Zusammenfassung mit Google Books ergänzt
+- ISBN-spezifische Google-Books-Suche für Zusammenfassungen
+- Titel-/Autor-Fallback für Zusammenfassungen
+- Quelle der Zusammenfassung wird in der Trefferliste angezeigt
+
 ## 0.7.1
 
 - Sternebewertung aktualisiert sofort alle Sterne bis zur gewählten Bewertung

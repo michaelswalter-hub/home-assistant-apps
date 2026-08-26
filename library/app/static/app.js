@@ -678,6 +678,7 @@ async function showMetadataCandidates(book) {
         <p><strong>ISBN:</strong> ${esc(candidate.isbn || "–")}</p>
         <p><strong>Ausgabe:</strong> ${esc(candidate.published_date || "–")}${candidate.publisher ? ` · ${esc(candidate.publisher)}` : ""}</p>
         <p><strong>Quelle:</strong> ${esc(candidate.metadata_source || "Online")}</p>
+        ${candidate.description_source ? `<p><strong>Zusammenfassung:</strong> ${esc(candidate.description_source)}</p>` : ""}
         <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung in diesem Treffer.")}</p>
         <div class="metadata-candidate-actions">
           <button class="primary choose-metadata" type="button">Diesen Treffer übernehmen</button>

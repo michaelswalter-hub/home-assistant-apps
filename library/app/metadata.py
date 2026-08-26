@@ -506,6 +506,78 @@ def _search_author_variants(author: str | None) -> list[str]:
     return unique[:3]
 
 
+
+def _fill_candidate_descriptions(candidates: list[dict], language: str = "de") -> list[dict]:
+    """Fill missing descriptions, preferring ISBN-specific Google Books matches."""
+    cache: dict[str, list[dict]] = {}
+
+    for candidate in candidates:
+        if candidate.get("description"):
+            continue
+
+        searches = []
+        isbn = normalize_isbn(candidate.get("isbn"))
+        title = candidate.get("title")
+        author = candidate.get("author")
+
+        if isbn:
+            searches.append(f"isbn:{isbn}")
+        if title and author:
+            searches.extend([
+                f'intitle:"{title}" inauthor:"{author}"',
+                f"{title} {author}",
+            ])
+        elif title:
+            searches.extend([
+                f'intitle:"{title}"',
+                title,
+            ])
+
+        description = None
+        description_source = None
+
+        for query in searches:
+            if query not in cache:
+                cache[query] = _google_books_candidates(query, language)
+
+            matches = cache[query]
+            if not matches:
+                continue
+
+            # ISBN match is strongest.
+            if isbn:
+                exact = next(
+                    (
+                        item for item in matches
+                        if normalize_isbn(item.get("isbn")) == isbn
+                        and item.get("description")
+                    ),
+                    None,
+                )
+                if exact:
+                    description = exact["description"]
+                    description_source = "Google Books"
+                    break
+
+            # Otherwise take the best title/author match that actually has text.
+            described = [item for item in matches if item.get("description")]
+            if described:
+                best = max(
+                    described,
+                    key=lambda item: _match_score(item, title, author),
+                )
+                if _similarity(title, best.get("title")) >= 0.55:
+                    description = best["description"]
+                    description_source = "Google Books"
+                    break
+
+        if description:
+            candidate["description"] = description
+            candidate["description_source"] = description_source
+
+    return candidates
+
+
 def search_metadata_candidates(local: dict, language: str = "de", limit: int = 15) -> list[dict]:
     title = local.get("title")
     author = local.get("author")
@@ -608,7 +680,7 @@ def search_metadata_candidates(local: dict, language: str = "de", limit: int = 1
         if len(unique) >= limit:
             break
 
-    return unique
+    return _fill_candidate_descriptions(unique, language)
 
 
 def enrich_metadata(local: dict, language: str = "de", force_lookup: bool = False) -> dict:
