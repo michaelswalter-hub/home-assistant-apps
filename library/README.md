@@ -2,7 +2,7 @@
 
 Eine private EPUB- und PDF-Bibliothek als eigenständige Home-Assistant-App.
 
-## Version 0.9.3
+## Version 0.9.4
 
 Die erste Version unterstützt:
 
@@ -226,3 +226,11 @@ Die KI verwendet die OpenAI Responses API mit Websuche. Bibliografische Fakten s
 - Migration läuft jetzt immer vor dem Anlegen von Indizes
 - bestehende Bibliotheken aus älteren Versionen werden weiterverwendet
 - alle Funktionen aus 0.9.2 sind enthalten, insbesondere die Mehrfach-Cover-Verwaltung
+
+
+## Wichtig in 0.9.4
+
+- Startkommando für Waitress auf portable Basisoptionen reduziert
+- behebt den Startabbruch mit angezeigter Waitress-Hilfeseite
+- Datenbank-Migrationsfix aus 0.9.3 bleibt enthalten
+- Mehrfach-Cover-Verwaltung aus 0.9.2 bleibt vollständig enthalten

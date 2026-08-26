@@ -13,7 +13,6 @@ bashio::log.info "Bevorzugte Metadaten-Sprache: ${LIBRARY_METADATA_LANGUAGE}"
 
 cd /app
 exec /opt/venv/bin/waitress-serve \
-  --listen=0.0.0.0:8099 \
-  --threads=4 \
-  --channel-timeout=600 \
+  --host=0.0.0.0 \
+  --port=8099 \
   main:app

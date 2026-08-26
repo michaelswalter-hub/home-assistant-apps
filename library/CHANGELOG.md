@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.4
+
+- Waitress-Startparameter vereinfacht, damit das Add-on wieder startet
+- Migrationsfix aus 0.9.3 beibehalten
+- Mehrfach-Cover-Verwaltung aus 0.9.2 beibehalten
+
 ## 0.9.3
 
 - Startfehler `no such column: series_id` bei alten Datenbanken dauerhaft behoben
