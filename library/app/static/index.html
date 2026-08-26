@@ -20,37 +20,39 @@
 
   <main>
     <section class="toolbar compact-toolbar">
-      <div class="toolbar-left">
+      <div class="toolbar-top">
         <div class="view-switch" role="group" aria-label="Ansicht wählen">
           <button id="booksViewButton" class="view-button active" type="button">Bücher</button>
           <button id="seriesViewButton" class="view-button" type="button">Serien</button>
         </div>
 
         <div id="bookCount" class="count toolbar-count"></div>
-      </div>
-
-      <label class="search toolbar-search">
-        <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Titel, Autor, Serie oder Genre suchen …">
-      </label>
-
-      <div class="toolbar-filters">
-        <div id="ratingFilter" class="rating-filter" aria-label="Nach Bewertung filtern" title="Bewertung filtern">
-          <span class="rating-filter-label">Bewertung</span>
-          <button type="button" class="rating-filter-star" data-rating="1" aria-label="1 Stern">★</button>
-          <button type="button" class="rating-filter-star" data-rating="2" aria-label="2 Sterne">★</button>
-          <button type="button" class="rating-filter-star" data-rating="3" aria-label="3 Sterne">★</button>
-          <button type="button" class="rating-filter-star" data-rating="4" aria-label="4 Sterne">★</button>
-          <button type="button" class="rating-filter-star" data-rating="5" aria-label="5 Sterne">★</button>
-        </div>
-
-        <div id="personFilter" class="person-filter" aria-label="Nach Person filtern">
-          <button type="button" class="person-filter-button active" data-person="">Alle</button>
-          <button type="button" class="person-filter-button" data-person="Hase">Hase</button>
-          <button type="button" class="person-filter-button" data-person="HoBi">HoBi</button>
-        </div>
 
         <button id="settingsButton" class="icon-button settings-button toolbar-settings" aria-label="Einstellungen" title="Einstellungen">⚙</button>
+      </div>
+
+      <div class="toolbar-bottom">
+        <label class="search toolbar-search">
+          <span>⌕</span>
+          <input id="searchInput" type="search" placeholder="Titel, Autor, Serie oder Genre suchen …">
+        </label>
+
+        <div class="toolbar-filters">
+          <div id="ratingFilter" class="rating-filter" aria-label="Nach Bewertung filtern" title="Bewertung filtern">
+            <span class="rating-filter-label">Bewertung</span>
+            <button type="button" class="rating-filter-star" data-rating="1" aria-label="1 Stern">★</button>
+            <button type="button" class="rating-filter-star" data-rating="2" aria-label="2 Sterne">★</button>
+            <button type="button" class="rating-filter-star" data-rating="3" aria-label="3 Sterne">★</button>
+            <button type="button" class="rating-filter-star" data-rating="4" aria-label="4 Sterne">★</button>
+            <button type="button" class="rating-filter-star" data-rating="5" aria-label="5 Sterne">★</button>
+          </div>
+
+          <div id="personFilter" class="person-filter" aria-label="Nach Person filtern">
+            <button type="button" class="person-filter-button active" data-person="">Alle</button>
+            <button type="button" class="person-filter-button" data-person="Hase">Hase</button>
+            <button type="button" class="person-filter-button" data-person="HoBi">HoBi</button>
+          </div>
+        </div>
       </div>
     </section>
 

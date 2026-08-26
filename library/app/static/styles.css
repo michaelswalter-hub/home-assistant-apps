@@ -1172,3 +1172,55 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   font-size: 11px;
   font-weight: 700;
 }
+
+
+/* Toolbar alignment 0.9.6 */
+.compact-toolbar {
+  display: block;
+}
+.toolbar-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+.toolbar-top .view-switch {
+  justify-self: start;
+  width: auto;
+}
+.toolbar-top .toolbar-count {
+  justify-self: center;
+  text-align: center;
+  white-space: nowrap;
+}
+.toolbar-top .toolbar-settings {
+  justify-self: end;
+  margin: 0;
+}
+.toolbar-bottom {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.toolbar-bottom .toolbar-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 720px) {
+  .toolbar-top {
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .toolbar-bottom {
+    grid-template-columns: 1fr;
+  }
+  .toolbar-bottom .toolbar-filters {
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 2px;
+  }
+}
