@@ -16,6 +16,7 @@ const template = document.getElementById("bookTemplate");
 
 const booksViewButton = document.getElementById("booksViewButton");
 const seriesViewButton = document.getElementById("seriesViewButton");
+const newViewButton = document.getElementById("newViewButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsDialog = document.getElementById("settingsDialog");
 const metadataDialog = document.getElementById("metadataDialog");
@@ -121,6 +122,7 @@ function setView(view) {
   currentView = view;
   booksViewButton.classList.toggle("active", view === "books");
   seriesViewButton.classList.toggle("active", view === "series");
+  newViewButton.classList.toggle("active", view === "new");
   render();
 }
 
@@ -200,12 +202,22 @@ function genreSearchMatch(query, genreName) {
   return q.length >= minimumLength && genre.includes(q);
 }
 
+function isBookAddedToday(book) {
+  if (!book.created_at) return false;
+  const created = new Date(book.created_at);
+  if (Number.isNaN(created.getTime())) return false;
+  const now = new Date();
+  return created.getFullYear() === now.getFullYear()
+    && created.getMonth() === now.getMonth()
+    && created.getDate() === now.getDate();
+}
+
 function filteredBooks() {
   const query = searchInput.value.trim().toLocaleLowerCase();
 
   return books.filter(book => {
-    // Bücher mit Serienzuordnung werden ausschließlich in der Serienansicht gezeigt.
-    if (book.series_id) return false;
+    if (currentView === "books" && book.series_id) return false;
+    if (currentView === "new" && !isBookAddedToday(book)) return false;
 
     const genreMatch = Boolean(query) && (book.genres || []).some(
       genre => genreSearchMatch(query, genre.name)
@@ -243,7 +255,11 @@ function render() {
   );
 
   grid.innerHTML = "";
-  bookCount.textContent = `${visibleBooks.length} ${visibleBooks.length === 1 ? "Buch" : "Bücher"}`;
+  if (currentView === "new") {
+    bookCount.textContent = `${visibleBooks.length} heute`;
+  } else {
+    bookCount.textContent = `${visibleBooks.length} ${visibleBooks.length === 1 ? "Buch" : "Bücher"}`;
+  }
 
   for (const book of visibleBooks) {
     const node = template.content.cloneNode(true);
@@ -490,18 +506,21 @@ async function showBook(id) {
 
 async function loadCoverGallery(book) {
   const gallery = document.getElementById("coverGallery");
-  if (!gallery) return;
+  const manager = document.getElementById("coverManager");
+  if (!gallery || !manager) return;
 
   try {
     const response = await fetch(api(`books/${book.id}/covers`));
     if (!response.ok) throw new Error("Cover konnten nicht geladen werden.");
     const covers = await response.json();
 
-    if (!Array.isArray(covers) || !covers.length) {
-      gallery.innerHTML = "<p>Für dieses Buch ist noch kein Cover gespeichert.</p>";
+    if (!Array.isArray(covers) || covers.length < 2) {
+      manager.classList.add("hidden");
+      gallery.innerHTML = "";
       return;
     }
 
+    manager.classList.remove("hidden");
     gallery.innerHTML = "";
 
     for (const cover of covers) {
@@ -597,7 +616,7 @@ function showEditBook(book) {
       <div>
         <h2>Buch bearbeiten</h2>
 
-        <section class="cover-manager">
+        <section id="coverManager" class="cover-manager hidden">
           <div class="cover-manager-head">
             <h3>Cover auswählen</h3>
             <span class="settings-help">Antippen = als Hauptcover verwenden</span>
@@ -652,15 +671,19 @@ function showEditBook(book) {
             </label>
           </div>
 
-          <div class="person-edit-row">
-            <label>Person
-              <select name="person">
-                <option value="" ${!book.person ? "selected" : ""}>Nicht zugeordnet</option>
-                <option value="Hase" ${book.person === "Hase" ? "selected" : ""}>Hase</option>
-                <option value="HoBi" ${book.person === "HoBi" ? "selected" : ""}>HoBi</option>
-              </select>
-            </label>
-          </div>
+          <fieldset class="person-edit-picker">
+            <legend>Person</legend>
+            <div class="person-edit-buttons">
+              <label class="person-choice${book.person === "Hase" ? " active" : ""}">
+                <input type="radio" name="person" value="Hase" ${book.person === "Hase" ? "checked" : ""}>
+                <span>Hase</span>
+              </label>
+              <label class="person-choice${book.person === "HoBi" ? " active" : ""}">
+                <input type="radio" name="person" value="HoBi" ${book.person === "HoBi" ? "checked" : ""}>
+                <span>HoBi</span>
+              </label>
+            </div>
+          </fieldset>
 
           <div class="edit-grid">
             <label>Serie
@@ -682,12 +705,20 @@ function showEditBook(book) {
   `;
 
   loadCoverGallery(book);
+  document.querySelectorAll('input[name="person"]').forEach(input => {
+    input.addEventListener("change", () => {
+      document.querySelectorAll(".person-choice").forEach(label => label.classList.remove("active"));
+      input.closest(".person-choice")?.classList.add("active");
+    });
+  });
+
   document.getElementById("cancelEdit").addEventListener("click", () => showBook(book.id));
   document.getElementById("editBookForm").addEventListener("submit", async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries());
     payload.genre_ids = form.getAll("genre_ids");
+    payload.person = form.get("person") || null;
 
     const response = await fetch(api(`books/${book.id}`), {
       method: "PATCH",
@@ -1154,6 +1185,7 @@ if (personFilter) {
 
 booksViewButton.addEventListener("click", () => setView("books"));
 seriesViewButton.addEventListener("click", () => setView("series"));
+newViewButton.addEventListener("click", () => setView("new"));
 
 closeDialog.addEventListener("click", () => dialog.close());
 dialog.addEventListener("click", event => {

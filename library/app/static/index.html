@@ -15,7 +15,7 @@
     <div class="header-actions">
       <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
     </div>
-    <input id="fileInput" type="file" multiple hidden>
+    <input id="fileInput" type="file" accept=".epub,.pdf,.mobi,application/pdf,application/epub+zip,application/x-mobipocket-ebook,application/octet-stream" multiple hidden>
   </header>
 
   <main>
@@ -24,6 +24,7 @@
         <div class="view-switch" role="group" aria-label="Ansicht wählen">
           <button id="booksViewButton" class="view-button active" type="button">Bücher</button>
           <button id="seriesViewButton" class="view-button" type="button">Serien</button>
+          <button id="newViewButton" class="view-button" type="button">Neu</button>
         </div>
 
         <div id="bookCount" class="count toolbar-count"></div>
@@ -60,7 +61,7 @@
     <section id="emptyState" class="empty hidden">
       <div class="empty-icon">▤</div>
       <h2>Noch keine Bücher</h2>
-      <p>Lade eine EPUB-, PDF- oder MOBI-Datei hoch. Die Dateiauswahl zeigt alle Dateien; andere Formate werden beim Upload abgelehnt. Metadaten und Cover werden soweit möglich automatisch ergänzt.</p>
+      <p>Lade eine EPUB-, PDF- oder MOBI-Datei hoch. Unterstützt werden EPUB, PDF und MOBI. Metadaten und Cover werden soweit möglich automatisch ergänzt.</p>
       <button id="emptyUploadButton" class="primary">Erstes Buch hinzufügen</button>
     </section>
 

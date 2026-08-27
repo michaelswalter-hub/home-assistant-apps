@@ -1275,3 +1275,12 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   top: 50% !important;
   transform: translateY(-50%) !important;
 }
+
+
+/* 0.9.11 */
+.person-edit-picker{border:0;padding:0;margin:0}
+.person-edit-picker legend{margin-bottom:7px;color:var(--muted);font-size:13px;font-weight:650}
+.person-edit-buttons{display:flex;gap:8px}
+.person-choice{position:relative;display:inline-flex!important;align-items:center;justify-content:center;min-width:92px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--muted)!important;padding:10px 14px;cursor:pointer;font-weight:750!important}
+.person-choice input{position:absolute;opacity:0;pointer-events:none}
+.person-choice.active{border-color:var(--accent);background:var(--surface-2);color:var(--text)!important}
