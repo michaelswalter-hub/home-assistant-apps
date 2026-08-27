@@ -230,11 +230,18 @@ def extract_mobi_metadata(path: Path, book_dir: Path) -> dict:
     try:
         tempdir, extracted = mobi.extract(str(path))
         extracted_path = Path(extracted)
+        if extracted_path.is_dir():
+            candidates = []
+            for suffix in (".epub", ".html", ".htm", ".xhtml", ".pdf"):
+                candidates.extend(extracted_path.rglob(f"*{suffix}"))
+            extracted_path = candidates[0] if candidates else extracted_path
 
-        # Newer MOBI/KF8 files may yield an EPUB, older MOBI files HTML.
-        if extracted_path.suffix.lower() == ".epub":
+        # Newer MOBI/KF8 files may yield EPUB, older MOBI HTML, and some print replicas PDF.
+        if extracted_path.is_file() and extracted_path.suffix.lower() == ".epub":
             result.update(extract_epub_metadata(extracted_path, book_dir))
-        elif extracted_path.exists():
+        elif extracted_path.is_file() and extracted_path.suffix.lower() == ".pdf":
+            result.update(extract_pdf_metadata(extracted_path, book_dir))
+        elif extracted_path.is_file():
             raw = extracted_path.read_bytes()
             text = raw.decode("utf-8", errors="ignore")
             soup = BeautifulSoup(text, "html.parser")

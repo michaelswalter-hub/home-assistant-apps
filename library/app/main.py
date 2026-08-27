@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.8"})
+    return jsonify({"status": "ok", "version": "0.9.9"})
 
 @app.get("/api/books")
 def list_books():
@@ -169,7 +169,14 @@ def upload_book():
                 "book": public_book(duplicate),
             }), 409
 
-        local = extract_local_metadata(stored_path, book_dir)
+        try:
+            local = extract_local_metadata(stored_path, book_dir)
+        except Exception:
+            app.logger.exception(
+                "Lokale Metadaten konnten nicht gelesen werden; Buch wird trotzdem gespeichert"
+            )
+            local = {}
+
         if not local.get("title"):
             local["title"] = title_from_filename(original_name)
 
@@ -663,16 +670,50 @@ def _epub_reader_text(path: Path) -> str:
 
     return "\n\n".join(chunks)
 
+
+def _resolve_mobi_extracted_path(extracted: str | Path) -> Path | None:
+    extracted_path = Path(extracted)
+    if extracted_path.is_file():
+        return extracted_path
+    if extracted_path.is_dir():
+        # KindleUnpack variants can return a directory. Prefer a readable book file.
+        candidates = []
+        for suffix in (".epub", ".html", ".htm", ".xhtml", ".pdf"):
+            candidates.extend(extracted_path.rglob(f"*{suffix}"))
+        return candidates[0] if candidates else None
+    return None
+
+def _pdf_text(path: Path) -> str:
+    reader = PdfReader(str(path))
+    chunks = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        if text.strip():
+            chunks.append(text.strip())
+    return "\n\n".join(chunks)
+
 def _mobi_reader_text(path: Path) -> str:
     tempdir = None
     try:
         tempdir, extracted = mobi.extract(str(path))
-        extracted_path = Path(extracted)
-        if extracted_path.suffix.lower() == ".epub":
+        extracted_path = _resolve_mobi_extracted_path(extracted)
+        if extracted_path is None:
+            return ""
+
+        suffix = extracted_path.suffix.lower()
+        if suffix == ".epub":
             return _epub_reader_text(extracted_path)
-        if extracted_path.exists():
+        if suffix == ".pdf":
+            return _pdf_text(extracted_path)
+        if suffix in {".html", ".htm", ".xhtml"}:
             return _safe_html_to_text(extracted_path.read_bytes())
-        return ""
+
+        return _safe_html_to_text(extracted_path.read_bytes())
+    except Exception as exc:
+        raise RuntimeError(
+            "MOBI konnte nicht entpackt werden. Das Buch ist möglicherweise DRM-geschützt "
+            "oder verwendet eine nicht unterstützte MOBI-Variante."
+        ) from exc
     finally:
         if tempdir:
             shutil.rmtree(tempdir, ignore_errors=True)

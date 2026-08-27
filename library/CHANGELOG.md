@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.9
+
+- MOBI-Bibliothek auf Version 0.4.1 aktualisiert
+- MOBI-Reader verarbeitet EPUB-, HTML-, PDF- und Verzeichnis-Ausgaben des Entpackers
+- Fehler in der MOBI-Metadatenerkennung blockieren den Upload nicht mehr
+- Anzahl der Bücher direkt links neben dem Zahnrad ausgerichtet
+- Bücher/Serien fest links
+
 ## 0.9.5
 
 - `ModuleNotFoundError: No module named imghdr` unter Python 3.13 behoben
