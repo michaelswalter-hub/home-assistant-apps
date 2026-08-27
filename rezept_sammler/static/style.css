@@ -375,7 +375,7 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .cook-ingredient-group+.cook-ingredient-group{padding-top:8px;border-top:1px dashed var(--border)}
 
 /* 0.5.23 – Rezept aus vorhandenen Zutaten */
-.pantry-option{border-color:#cfe8d7!important}
+
 .pantry-form textarea{min-height:210px}
 .ai-working{display:flex;align-items:center;gap:10px;margin:10px 0;padding:11px 13px;border-radius:13px;background:var(--bg);border:1px solid var(--border)}
 .ai-working[hidden]{display:none}
@@ -424,3 +424,17 @@ input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(-
 .book-choice input:checked + .book-checkmark{background:var(--accent);border-color:var(--accent)}
 .book-choice input:checked + .book-checkmark:after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:900}
 .book-choice-name{line-height:1.2}
+
+/* 0.5.32 – Wake Lock im Kochmodus */
+.wake-lock-control{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;padding:12px 13px;border:1px solid var(--border);border-radius:14px;background:var(--bg)}
+.wake-lock-text{display:flex;flex-direction:column;gap:3px}
+.wake-lock-text small{color:var(--muted);font-size:12px;line-height:1.35}
+.switch{position:relative;display:inline-flex;width:48px;height:28px;flex:0 0 48px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch-slider{position:absolute;inset:0;border-radius:999px;background:var(--border);transition:.2s ease;cursor:pointer}
+.switch-slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.2s ease}
+.switch input:checked + .switch-slider{background:var(--accent)}
+.switch input:checked + .switch-slider:before{transform:translateX(20px)}
+.wake-lock-status{margin:8px 2px 0;font-size:12px;color:var(--muted)}
+.wake-lock-status.is-ok{color:#238636}
+.wake-lock-status.is-error{color:var(--danger)}

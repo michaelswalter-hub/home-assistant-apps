@@ -5,6 +5,11 @@
 {% if selected_variant %}<p class="cook-variant-badge">Variante: {{selected_variant.name}}</p>{% endif %}
 {% if display_total %}<p class="subtle">⏱️ {{human_minutes(display_total)}}</p>{% endif %}
 <a href="?view=recipe&id={{recipe.id}}{% if selected_variant %}&variant={{selected_variant.id}}{% endif %}">← Zurück</a>
+<div class="wake-lock-control">
+  <div class="wake-lock-text"><b>📱 Bildschirm anlassen</b><small>Verhindert nach Möglichkeit das automatische Sperren während des Kochens.</small></div>
+  <label class="switch"><input type="checkbox" id="wake-lock-toggle"><span class="switch-slider"></span></label>
+</div>
+<p class="wake-lock-status" id="wake-lock-status" aria-live="polite"></p>
 </section>
 
 {% if unmatched_ingredient_groups %}
@@ -74,4 +79,49 @@ function timer(n,id){
   u()
 }
 </script>
+
+<script>
+(function(){
+  const toggle=document.getElementById('wake-lock-toggle');
+  const status=document.getElementById('wake-lock-status');
+  if(!toggle || !status) return;
+  let wakeLock=null;
+  function setStatus(text,kind){
+    status.textContent=text||'';
+    status.classList.toggle('is-error',kind==='error');
+    status.classList.toggle('is-ok',kind==='ok');
+  }
+  async function requestWakeLock(){
+    if(!('wakeLock' in navigator)){
+      toggle.checked=false;
+      setStatus('Auf diesem iPhone/Browser wird „Bildschirm anlassen“ nicht unterstützt.','error');
+      return;
+    }
+    try{
+      wakeLock=await navigator.wakeLock.request('screen');
+      localStorage.setItem('cook-wake-lock','1');
+      setStatus('Bildschirm bleibt während des Kochmodus aktiv.','ok');
+      wakeLock.addEventListener('release',()=>{wakeLock=null;});
+    }catch(err){
+      toggle.checked=false;
+      localStorage.removeItem('cook-wake-lock');
+      setStatus('Bildschirm konnte nicht dauerhaft aktiviert werden.','error');
+    }
+  }
+  async function releaseWakeLock(){
+    localStorage.removeItem('cook-wake-lock');
+    if(wakeLock){try{await wakeLock.release();}catch(e){} wakeLock=null;}
+    setStatus('');
+  }
+  toggle.addEventListener('change',()=>toggle.checked?requestWakeLock():releaseWakeLock());
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible' && toggle.checked && !wakeLock) requestWakeLock();
+  });
+  if(localStorage.getItem('cook-wake-lock')==='1'){
+    toggle.checked=true;
+    requestWakeLock();
+  }
+})();
+</script>
+
 {% endblock %}
