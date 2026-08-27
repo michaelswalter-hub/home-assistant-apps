@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.10
+
+- iPhone/iPad-Dateiauswahl für MOBI korrigiert
+- restriktives `accept`-Attribut am Datei-Upload entfernt
+- iOS-Dateiauswahl kann dadurch MOBI-Dateien wieder anzeigen und auswählen
+- Server validiert weiterhin ausschließlich EPUB, PDF und MOBI
+- alle Änderungen und Fehlerbehebungen aus 0.9.9 bleiben enthalten
+
 ## 0.9.9
 
 - MOBI-Bibliothek auf Version 0.4.1 aktualisiert
