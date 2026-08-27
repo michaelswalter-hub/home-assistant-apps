@@ -640,12 +640,15 @@ function showEditBook(book) {
       <div>
         <h2>Buch bearbeiten</h2>
 
-        <section class="local-cover-upload">
+        <section class="edit-cover-source">
           <div>
-            <h3>Eigenes Cover</h3>
-            <p class="settings-help">Wähle ein Bild vom Gerät. Es wird zusätzlich gespeichert und direkt als Hauptcover verwendet.</p>
+            <h3>Cover</h3>
+            <p class="settings-help">Wähle ein Cover lokal vom Gerät oder suche eines im Internet.</p>
           </div>
-          <button id="uploadLocalCover" type="button" class="secondary">Cover vom Gerät wählen</button>
+          <div class="edit-cover-source-actions">
+            <button id="uploadLocalCover" type="button" class="secondary">Lokal wählen</button>
+            <button id="searchCoverFromEdit" type="button" class="secondary">Im Internet suchen</button>
+          </div>
         </section>
 
         <section id="coverManager" class="cover-manager hidden">
@@ -744,6 +747,22 @@ function showEditBook(book) {
       coverFileInput.value = "";
       coverFileInput.dataset.bookId = book.id;
       coverFileInput.click();
+    });
+  }
+
+  const searchCoverFromEdit = document.getElementById("searchCoverFromEdit");
+  if (searchCoverFromEdit) {
+    searchCoverFromEdit.addEventListener("click", async () => {
+      searchCoverFromEdit.disabled = true;
+      searchCoverFromEdit.textContent = "Suche …";
+      try {
+        await showCoverCandidates(book);
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        searchCoverFromEdit.disabled = false;
+        searchCoverFromEdit.textContent = "Im Internet suchen";
+      }
     });
   }
 

@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.14"})
+    return jsonify({"status": "ok", "version": "0.9.15"})
 
 @app.get("/api/books")
 def list_books():
@@ -636,7 +636,7 @@ def get_book_cover_file(book_id: str, cover_id: str):
     if not target.name.lower().startswith("cover"):
         return jsonify({"error": "Ungültige Cover-Datei."}), 400
 
-    return send_file(target, conditional=True)
+    return send_file(target, conditional=True, max_age=0)
 
 @app.patch("/api/books/<book_id>/covers/<cover_id>/active")
 def set_active_cover(book_id: str, cover_id: str):
@@ -698,9 +698,18 @@ def get_cover(book_id: str):
     if not book:
         return jsonify({"error": "Buch nicht gefunden."}), 404
     cover_path = book.get("cover_path")
-    if not cover_path or not Path(cover_path).exists():
-        return "", 404
-    return send_file(cover_path, conditional=True)
+    if cover_path and Path(cover_path).exists():
+        return send_file(cover_path, conditional=True, max_age=0)
+
+    # Self-heal older/stale cover_path values by selecting an existing stored cover.
+    covers = _book_covers(book)
+    if covers:
+        fallback = Path(book["storage_path"]).parent / covers[0]["id"]
+        if fallback.exists():
+            db.update_book(book_id, {"cover_path": str(fallback), "updated_at": utcnow()})
+            return send_file(fallback, conditional=True, max_age=0)
+
+    return "", 404
 
 
 def _safe_html_to_text(raw: bytes | str) -> str:

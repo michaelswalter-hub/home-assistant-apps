@@ -1356,3 +1356,10 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .local-cover-upload p{margin:0}
 .local-cover-upload button{flex:0 0 auto}
 @media(max-width:600px){.local-cover-upload{align-items:stretch;flex-direction:column}}
+
+/* 0.9.15 – Coverquelle direkt in Buch bearbeiten */
+.edit-cover-source{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.edit-cover-source h3{margin:0 0 3px;font-size:15px}
+.edit-cover-source p{margin:0}
+.edit-cover-source-actions{display:flex;gap:8px;flex:0 0 auto}
+@media(max-width:650px){.edit-cover-source{align-items:stretch;flex-direction:column}.edit-cover-source-actions{width:100%}.edit-cover-source-actions button{flex:1}}
