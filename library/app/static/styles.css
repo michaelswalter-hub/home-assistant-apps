@@ -1349,3 +1349,10 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .pin-card{display:grid;gap:12px}
 .pin-card input{width:100%;box-sizing:border-box;font-size:22px;letter-spacing:.15em;text-align:center}
 .pin-error{color:#d32f2f;font-weight:700}
+
+/* 0.9.14 – lokales Cover */
+.local-cover-upload{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.local-cover-upload h3{margin:0 0 3px;font-size:15px}
+.local-cover-upload p{margin:0}
+.local-cover-upload button{flex:0 0 auto}
+@media(max-width:600px){.local-cover-upload{align-items:stretch;flex-direction:column}}

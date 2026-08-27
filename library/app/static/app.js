@@ -6,6 +6,7 @@ const searchInput = document.getElementById("searchInput");
 const ratingFilter = document.getElementById("ratingFilter");
 const personFilter = document.getElementById("personFilter");
 const fileInput = document.getElementById("fileInput");
+const coverFileInput = document.getElementById("coverFileInput");
 const uploadButton = document.getElementById("uploadButton");
 const emptyUploadButton = document.getElementById("emptyUploadButton");
 const uploadStatus = document.getElementById("uploadStatus");
@@ -639,6 +640,14 @@ function showEditBook(book) {
       <div>
         <h2>Buch bearbeiten</h2>
 
+        <section class="local-cover-upload">
+          <div>
+            <h3>Eigenes Cover</h3>
+            <p class="settings-help">Wähle ein Bild vom Gerät. Es wird zusätzlich gespeichert und direkt als Hauptcover verwendet.</p>
+          </div>
+          <button id="uploadLocalCover" type="button" class="secondary">Cover vom Gerät wählen</button>
+        </section>
+
         <section id="coverManager" class="cover-manager hidden">
           <div class="cover-manager-head">
             <h3>Cover auswählen</h3>
@@ -728,6 +737,16 @@ function showEditBook(book) {
   `;
 
   loadCoverGallery(book);
+
+  const uploadLocalCover = document.getElementById("uploadLocalCover");
+  if (uploadLocalCover && coverFileInput) {
+    uploadLocalCover.addEventListener("click", () => {
+      coverFileInput.value = "";
+      coverFileInput.dataset.bookId = book.id;
+      coverFileInput.click();
+    });
+  }
+
   document.querySelectorAll('input[name="person"]').forEach(input => {
     input.addEventListener("change", () => {
       document.querySelectorAll(".person-choice").forEach(label => label.classList.remove("active"));
@@ -1235,6 +1254,36 @@ async function uploadFiles(files) {
 uploadButton.addEventListener("click", () => fileInput.click());
 emptyUploadButton.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => uploadFiles([...fileInput.files]));
+
+if (coverFileInput) {
+  coverFileInput.addEventListener("change", async () => {
+    const file = coverFileInput.files?.[0];
+    const bookId = coverFileInput.dataset.bookId;
+    if (!file || !bookId) return;
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const response = await fetch(api(`books/${bookId}/covers/upload`), {
+        method: "POST",
+        body: form
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Cover konnte nicht hochgeladen werden.");
+
+      await loadData();
+      const current = books.find(item => item.id === bookId) || result.book;
+      showEditBook(current);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      coverFileInput.value = "";
+      delete coverFileInput.dataset.bookId;
+    }
+  });
+}
+
 searchInput.addEventListener("input", render);
 
 if (ratingFilter) {

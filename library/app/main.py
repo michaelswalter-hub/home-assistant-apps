@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.13"})
+    return jsonify({"status": "ok", "version": "0.9.14"})
 
 @app.get("/api/books")
 def list_books():
@@ -551,6 +551,62 @@ def refresh_metadata(book_id: str):
         "isbn_found": bool(updated.get("isbn")),
     }
     return jsonify(payload)
+
+
+
+@app.post("/api/books/<book_id>/covers/upload")
+def upload_book_cover(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    uploaded = request.files.get("file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"error": "Keine Cover-Datei ausgewählt."}), 400
+
+    suffix = Path(uploaded.filename).suffix.lower()
+    allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    content_type = str(uploaded.mimetype or "").lower()
+
+    if suffix not in allowed and not content_type.startswith("image/"):
+        return jsonify({"error": "Unterstützt werden JPG, PNG, WEBP und GIF."}), 400
+
+    suffix_by_type = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    if suffix not in allowed:
+        suffix = suffix_by_type.get(content_type, ".jpg")
+
+    book_dir = Path(book["storage_path"]).parent
+    target = book_dir / f"cover_local_{uuid4().hex[:10]}{suffix}"
+
+    try:
+        uploaded.save(target)
+        size = target.stat().st_size
+        if size <= 0:
+            target.unlink(missing_ok=True)
+            return jsonify({"error": "Die ausgewählte Bilddatei ist leer."}), 400
+        if size > 15 * 1024 * 1024:
+            target.unlink(missing_ok=True)
+            return jsonify({"error": "Das Cover darf maximal 15 MB groß sein."}), 413
+    except Exception as exc:
+        target.unlink(missing_ok=True)
+        return jsonify({"error": f"Cover konnte nicht gespeichert werden: {exc}"}), 500
+
+    db.update_book(book_id, {
+        "cover_path": str(target),
+        "updated_at": utcnow(),
+    })
+
+    updated = db.get_book(book_id)
+    return jsonify({
+        "book": public_book(updated),
+        "covers": _book_covers(updated),
+    }), 201
 
 
 @app.get("/api/books/<book_id>/covers")
