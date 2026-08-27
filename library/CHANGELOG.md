@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.12
+
+- separate Coversuche hinzugefügt
+- Coversuche zeigt nur Treffer mit Bild
+- Auswahl übernimmt ausschließlich das Cover
+- vorhandene Metadaten bleiben vollständig unverändert
+- neues Cover wird zusätzlich gespeichert und als Hauptcover aktiviert
+- vorhandene Cover bleiben für die Cover-Verwaltung erhalten
+
 ## 0.9.10
 
 - iPhone/iPad-Dateiauswahl für MOBI korrigiert

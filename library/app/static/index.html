@@ -166,6 +166,18 @@
   </template>
 
 
+
+  <dialog id="coverSearchDialog" class="metadata-modal cover-search-modal">
+    <button id="closeCoverSearch" class="icon-button close" aria-label="Schließen">×</button>
+    <div class="metadata-dialog-content">
+      <p class="eyebrow">COVERSUCHE</p>
+      <h2>Cover auswählen</h2>
+      <p class="settings-help">Es wird nur das ausgewählte Cover übernommen. Titel, ISBN, Zusammenfassung und andere Metadaten bleiben unverändert.</p>
+      <div id="coverSearchCandidates" class="cover-search-candidates"></div>
+    </div>
+  </dialog>
+
+
   <dialog id="metadataDialog" class="metadata-modal">
     <button id="closeMetadata" class="icon-button close" aria-label="Schließen">×</button>
     <div class="metadata-dialog-content">

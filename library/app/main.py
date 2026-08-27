@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.11"})
+    return jsonify({"status": "ok", "version": "0.9.12"})
 
 @app.get("/api/books")
 def list_books():
@@ -358,6 +358,70 @@ def metadata_status(book_id: str):
         "isbn": book.get("isbn"),
     }
     return jsonify(metadata_provider_status(local, METADATA_LANGUAGE))
+
+
+@app.get("/api/books/<book_id>/cover-candidates")
+def cover_candidates(book_id: str):
+    configure_metadata_providers()
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    local = {
+        "title": book.get("title"),
+        "author": book.get("author"),
+        "isbn": book.get("isbn"),
+    }
+    candidates = search_metadata_candidates(local, METADATA_LANGUAGE, limit=24)
+
+    # A cover-only search deliberately ignores candidates without an image.
+    covers = []
+    seen_urls = set()
+    for candidate in candidates:
+        cover_url = candidate.get("cover_url")
+        if not cover_url or cover_url in seen_urls:
+            continue
+        seen_urls.add(cover_url)
+        covers.append({
+            "title": candidate.get("title"),
+            "author": candidate.get("author"),
+            "isbn": candidate.get("isbn"),
+            "published_date": candidate.get("published_date"),
+            "publisher": candidate.get("publisher"),
+            "metadata_source": candidate.get("metadata_source"),
+            "cover_url": cover_url,
+        })
+
+    return jsonify(covers)
+
+
+@app.post("/api/books/<book_id>/cover-candidates/apply")
+def apply_cover_candidate(book_id: str):
+    book = db.get_book(book_id)
+    if not book:
+        return jsonify({"error": "Buch nicht gefunden."}), 404
+
+    data = request.get_json(silent=True) or {}
+    cover_url = str(data.get("cover_url") or "").strip()
+    if not cover_url.startswith(("http://", "https://")):
+        return jsonify({"error": "Kein gültiges Cover ausgewählt."}), 400
+
+    cover = download_cover(cover_url, Path(book["storage_path"]).parent)
+    if not cover:
+        return jsonify({"error": "Cover konnte nicht heruntergeladen werden."}), 502
+
+    # Only the cover changes. All bibliographic metadata remains untouched.
+    db.update_book(book_id, {
+        "cover_path": str(cover),
+        "updated_at": utcnow(),
+    })
+
+    updated = db.get_book(book_id)
+    return jsonify({
+        "book": public_book(updated),
+        "covers": _book_covers(updated),
+    })
+
 
 @app.get("/api/books/<book_id>/metadata-candidates")
 def metadata_candidates(book_id: str):

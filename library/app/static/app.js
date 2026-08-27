@@ -22,6 +22,9 @@ const settingsDialog = document.getElementById("settingsDialog");
 const metadataDialog = document.getElementById("metadataDialog");
 const metadataCandidates = document.getElementById("metadataCandidates");
 const closeMetadata = document.getElementById("closeMetadata");
+const coverSearchDialog = document.getElementById("coverSearchDialog");
+const coverSearchCandidates = document.getElementById("coverSearchCandidates");
+const closeCoverSearch = document.getElementById("closeCoverSearch");
 const readerDialog = document.getElementById("readerDialog");
 const readerTitle = document.getElementById("readerTitle");
 const readerContent = document.getElementById("readerContent");
@@ -402,6 +405,7 @@ async function showBook(id) {
         <div class="detail-top-actions">
           <button class="secondary" id="editBook">Bearbeiten</button>
           <button class="secondary" id="refreshMetadata">Metadaten erneut suchen</button>
+          <button class="secondary" id="searchCover">Cover suchen</button>
         </div>
 
         <p class="description">${esc(book.description || "Noch keine Zusammenfassung vorhanden.")}</p>
@@ -486,6 +490,19 @@ async function showBook(id) {
     } finally {
       button.disabled = false;
       button.textContent = "Teilen / In Dateien sichern";
+    }
+  });
+
+  document.getElementById("searchCover").addEventListener("click", async event => {
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = "Cover werden gesucht …";
+    try {
+      await showCoverCandidates(book);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      event.currentTarget.disabled = false;
+      event.currentTarget.textContent = "Cover suchen";
     }
   });
 
@@ -938,6 +955,77 @@ async function openReader(book) {
   }
 }
 
+
+async function showCoverCandidates(book) {
+  if (!coverSearchDialog || !coverSearchCandidates) {
+    throw new Error("Die Coversuche konnte nicht geöffnet werden.");
+  }
+
+  coverSearchCandidates.innerHTML = "<p>Cover werden gesucht …</p>";
+  coverSearchDialog.showModal();
+
+  const response = await fetch(api(`books/${book.id}/cover-candidates`));
+  const candidates = await response.json();
+  if (!response.ok) {
+    throw new Error(candidates.error || "Coversuche fehlgeschlagen.");
+  }
+
+  coverSearchCandidates.innerHTML = "";
+
+  if (!Array.isArray(candidates) || !candidates.length) {
+    coverSearchCandidates.innerHTML = "<p>Keine passenden Cover gefunden.</p>";
+    return;
+  }
+
+  for (const candidate of candidates) {
+    const card = document.createElement("article");
+    card.className = "cover-search-card";
+    card.innerHTML = `
+      <button type="button" class="cover-search-select">
+        <img src="${esc(candidate.cover_url)}" alt="Cover von ${esc(candidate.title || book.title)}">
+        <span class="cover-search-info">
+          <strong>${esc(candidate.title || book.title || "Ohne Titel")}</strong>
+          <span>${esc(candidate.author || book.author || "Autor unbekannt")}</span>
+          ${candidate.isbn ? `<span>ISBN ${esc(candidate.isbn)}</span>` : ""}
+          ${candidate.published_date ? `<span>${esc(candidate.published_date)}</span>` : ""}
+          <span>${esc(candidate.metadata_source || "Online")}</span>
+        </span>
+        <span class="cover-search-action">Dieses Cover übernehmen</span>
+      </button>
+    `;
+
+    card.querySelector(".cover-search-select").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+
+      try {
+        const apply = await fetch(api(`books/${book.id}/cover-candidates/apply`), {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({cover_url: candidate.cover_url})
+        });
+        const result = await apply.json();
+        if (!apply.ok) {
+          throw new Error(result.error || "Cover konnte nicht übernommen werden.");
+        }
+
+        const updated = result.book;
+        const index = books.findIndex(item => item.id === book.id);
+        if (index >= 0) books[index] = updated;
+
+        coverSearchDialog.close();
+        await loadData();
+        await showBook(book.id);
+      } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+      }
+    });
+
+    coverSearchCandidates.appendChild(card);
+  }
+}
+
 function amazonSearchUrl(candidate) {
   const query = candidate.isbn || [candidate.title, candidate.author].filter(Boolean).join(" ");
   return `https://www.amazon.de/s?k=${encodeURIComponent(query)}`;
@@ -1209,6 +1297,10 @@ if (readerFontUp) {
   });
 }
 
+if (closeCoverSearch && coverSearchDialog) {
+  closeCoverSearch.addEventListener("click", () => coverSearchDialog.close());
+}
+
 if (closeMetadata && metadataDialog) {
   
 if (closeReader && readerDialog) {
@@ -1225,6 +1317,10 @@ if (readerFontUp) {
     readerFontSize = Math.min(34, readerFontSize + 2);
     applyReaderFontSize();
   });
+}
+
+if (closeCoverSearch && coverSearchDialog) {
+  closeCoverSearch.addEventListener("click", () => coverSearchDialog.close());
 }
 
 if (closeMetadata && metadataDialog) {
