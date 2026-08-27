@@ -1363,3 +1363,11 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .edit-cover-source p{margin:0}
 .edit-cover-source-actions{display:flex;gap:8px;flex:0 0 auto}
 @media(max-width:650px){.edit-cover-source{align-items:stretch;flex-direction:column}.edit-cover-source-actions{width:100%}.edit-cover-source-actions button{flex:1}}
+
+/* 0.9.16 – gemeinsame Coverquelle */
+.cover-source-dialog{width:min(92vw,430px)}
+.cover-source-card{display:grid;gap:12px}
+.cover-source-card h2,.cover-source-card p{margin-top:0}
+.cover-source-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cover-source-cancel{width:100%}
+@media(max-width:500px){.cover-source-buttons{grid-template-columns:1fr}}

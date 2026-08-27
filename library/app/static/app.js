@@ -30,6 +30,10 @@ const metadataDialog = document.getElementById("metadataDialog");
 const metadataCandidates = document.getElementById("metadataCandidates");
 const closeMetadata = document.getElementById("closeMetadata");
 const coverSearchDialog = document.getElementById("coverSearchDialog");
+const coverSourceDialog = document.getElementById("coverSourceDialog");
+const chooseLocalCoverSource = document.getElementById("chooseLocalCoverSource");
+const chooseInternetCoverSource = document.getElementById("chooseInternetCoverSource");
+const cancelCoverSource = document.getElementById("cancelCoverSource");
 const coverSearchCandidates = document.getElementById("coverSearchCandidates");
 const closeCoverSearch = document.getElementById("closeCoverSearch");
 const readerDialog = document.getElementById("readerDialog");
@@ -277,7 +281,7 @@ function render() {
     const image = node.querySelector(".cover");
     const fallback = node.querySelector(".cover-fallback");
     image.alt = `Cover von ${book.title}`;
-    image.src = api(`books/${book.id}/cover`);
+    image.src = `${api(`books/${book.id}/cover`)}?v=${encodeURIComponent(book.updated_at || "")}`;
     image.addEventListener("load", () => fallback.classList.add("hidden"));
     image.addEventListener("error", () => image.classList.add("hidden"));
     node.querySelector(".format-badge").textContent = book.format;
@@ -366,7 +370,7 @@ function renderSeriesView() {
 
     const firstBook = members[0] || null;
     const coverHtml = firstBook
-      ? `<img src="${api(`books/${firstBook.id}/cover`)}" alt="Cover von ${esc(firstBook.title)}"
+      ? `<img src="${api(`books/${firstBook.id}/cover`)}?v=${encodeURIComponent(firstBook.updated_at || "")}" alt="Cover von ${esc(firstBook.title)}"
            onerror="this.outerHTML='<div class=&quot;series-cover-placeholder&quot;>Kein Cover</div>'">`
       : `<div class="series-cover-placeholder">Kein Cover</div>`;
 
@@ -412,7 +416,7 @@ async function showBook(id) {
         <div class="detail-top-actions">
           <button class="secondary" id="editBook">Bearbeiten</button>
           <button class="secondary" id="refreshMetadata">Metadaten erneut suchen</button>
-          <button class="secondary" id="searchCover">Cover suchen</button>
+          <button class="secondary" id="loadCover">Cover laden</button>
         </div>
 
         <p class="description">${esc(book.description || "Noch keine Zusammenfassung vorhanden.")}</p>
@@ -500,17 +504,8 @@ async function showBook(id) {
     }
   });
 
-  document.getElementById("searchCover").addEventListener("click", async event => {
-    event.currentTarget.disabled = true;
-    event.currentTarget.textContent = "Cover werden gesucht …";
-    try {
-      await showCoverCandidates(book);
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      event.currentTarget.disabled = false;
-      event.currentTarget.textContent = "Cover suchen";
-    }
+  document.getElementById("loadCover").addEventListener("click", () => {
+    openCoverSourceDialog(book);
   });
 
   document.getElementById("refreshMetadata").addEventListener("click", async event => {
@@ -643,11 +638,10 @@ function showEditBook(book) {
         <section class="edit-cover-source">
           <div>
             <h3>Cover</h3>
-            <p class="settings-help">Wähle ein Cover lokal vom Gerät oder suche eines im Internet.</p>
+            <p class="settings-help">Lade ein Cover und wähle anschließend zwischen lokalem Bild und Internetsuche.</p>
           </div>
           <div class="edit-cover-source-actions">
-            <button id="uploadLocalCover" type="button" class="secondary">Lokal wählen</button>
-            <button id="searchCoverFromEdit" type="button" class="secondary">Im Internet suchen</button>
+            <button id="loadCoverFromEdit" type="button" class="secondary">Cover laden</button>
           </div>
         </section>
 
@@ -741,29 +735,9 @@ function showEditBook(book) {
 
   loadCoverGallery(book);
 
-  const uploadLocalCover = document.getElementById("uploadLocalCover");
-  if (uploadLocalCover && coverFileInput) {
-    uploadLocalCover.addEventListener("click", () => {
-      coverFileInput.value = "";
-      coverFileInput.dataset.bookId = book.id;
-      coverFileInput.click();
-    });
-  }
-
-  const searchCoverFromEdit = document.getElementById("searchCoverFromEdit");
-  if (searchCoverFromEdit) {
-    searchCoverFromEdit.addEventListener("click", async () => {
-      searchCoverFromEdit.disabled = true;
-      searchCoverFromEdit.textContent = "Suche …";
-      try {
-        await showCoverCandidates(book);
-      } catch (error) {
-        alert(error.message);
-      } finally {
-        searchCoverFromEdit.disabled = false;
-        searchCoverFromEdit.textContent = "Im Internet suchen";
-      }
-    });
+  const loadCoverFromEdit = document.getElementById("loadCoverFromEdit");
+  if (loadCoverFromEdit) {
+    loadCoverFromEdit.addEventListener("click", () => openCoverSourceDialog(book));
   }
 
   document.querySelectorAll('input[name="person"]').forEach(input => {
@@ -999,6 +973,13 @@ async function openReader(book) {
   }
 }
 
+
+let coverSourceBook = null;
+
+function openCoverSourceDialog(book) {
+  coverSourceBook = book;
+  coverSourceDialog?.showModal();
+}
 
 async function showCoverCandidates(book) {
   if (!coverSearchDialog || !coverSearchCandidates) {
@@ -1368,6 +1349,32 @@ if (readerFontUp) {
   readerFontUp.addEventListener("click", () => {
     readerFontSize = Math.min(34, readerFontSize + 2);
     applyReaderFontSize();
+  });
+}
+
+if (cancelCoverSource && coverSourceDialog) {
+  cancelCoverSource.addEventListener("click", () => coverSourceDialog.close());
+}
+if (chooseLocalCoverSource) {
+  chooseLocalCoverSource.addEventListener("click", () => {
+    const book = coverSourceBook;
+    coverSourceDialog?.close();
+    if (!book || !coverFileInput) return;
+    coverFileInput.value = "";
+    coverFileInput.dataset.bookId = book.id;
+    coverFileInput.click();
+  });
+}
+if (chooseInternetCoverSource) {
+  chooseInternetCoverSource.addEventListener("click", async () => {
+    const book = coverSourceBook;
+    coverSourceDialog?.close();
+    if (!book) return;
+    try {
+      await showCoverCandidates(book);
+    } catch (error) {
+      alert(error.message);
+    }
   });
 }
 

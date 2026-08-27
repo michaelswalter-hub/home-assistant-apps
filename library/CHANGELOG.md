@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.16
+
+- Cover in Übersicht, Serienansicht und Detailansicht verwenden denselben Cache-Stand
+- falsches/altes Cover in der Übersicht nach Coverwechsel behoben
+- einheitlicher Button `Cover laden`
+- nach `Cover laden` Auswahl zwischen `Lokal vom Gerät` und `Im Internet suchen`
+- gleiche Coverquelle-Auswahl in Buchdetails und Buch bearbeiten
+
 ## 0.9.12
 
 - separate Coversuche hinzugefügt
