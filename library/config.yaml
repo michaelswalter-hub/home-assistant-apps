@@ -1,5 +1,5 @@
 name: "Bibliothek"
-version: "0.9.12"
+version: "0.9.13"
 slug: "library"
 description: "Private EPUB- und PDF-Bibliothek mit automatischer Metadaten- und Cover-Suche."
 init: false
@@ -16,8 +16,10 @@ panel_title: "Bibliothek"
 panel_admin: false
 backup: hot
 options:
+  settings_pin: "1234"
   max_upload_mb: 1024
   metadata_language: "de"
 schema:
+  settings_pin: password
   max_upload_mb: "int(10,4096)"
   metadata_language: "str"

@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.12"})
+    return jsonify({"status": "ok", "version": "0.9.13"})
 
 @app.get("/api/books")
 def list_books():
@@ -946,6 +946,25 @@ def remove_genre(genre_id: str):
         return jsonify({"error": "Genre nicht gefunden."}), 404
     db.delete_genre(genre_id)
     return "", 204
+
+def _settings_pin() -> str:
+    try:
+        options_path = Path("/data/options.json")
+        if options_path.exists():
+            options = json.loads(options_path.read_text(encoding="utf-8"))
+            return str(options.get("settings_pin") or "1234").strip() or "1234"
+    except Exception:
+        pass
+    return "1234"
+
+
+@app.post("/api/settings/unlock")
+def unlock_settings():
+    data = request.get_json(silent=True) or {}
+    if str(data.get("pin") or "") != _settings_pin():
+        return jsonify({"ok": False, "error": "PIN ist nicht korrekt."}), 403
+    return jsonify({"ok": True})
+
 
 @app.get("/api/settings")
 def get_settings():

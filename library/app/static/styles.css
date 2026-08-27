@@ -1341,3 +1341,11 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* 0.9.13 hidden settings */
+.hidden-settings-trigger{display:none!important}
+.settings-secret-trigger{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.pin-modal{width:min(92vw,390px)}
+.pin-card{display:grid;gap:12px}
+.pin-card input{width:100%;box-sizing:border-box;font-size:22px;letter-spacing:.15em;text-align:center}
+.pin-error{color:#d32f2f;font-weight:700}

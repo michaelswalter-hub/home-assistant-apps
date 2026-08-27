@@ -10,7 +10,7 @@
   <header class="topbar">
     <div>
       <p class="eyebrow">HOME ASSISTANT</p>
-      <h1>Meine Bibliothek</h1>
+      <h1 id="libraryTitle" class="settings-secret-trigger">Meine Bibliothek</h1>
     </div>
     <div class="header-actions">
       <button id="uploadButton" class="primary">＋ Bücher hinzufügen</button>
@@ -29,7 +29,7 @@
 
         <div id="bookCount" class="count toolbar-count"></div>
 
-        <button id="settingsButton" class="icon-button settings-button toolbar-settings" aria-label="Einstellungen" title="Einstellungen">⚙</button>
+        <button id="settingsButton" class="icon-button settings-button toolbar-settings hidden-settings-trigger" aria-label="Einstellungen" tabindex="-1">⚙</button>
       </div>
 
       <div class="toolbar-bottom">
@@ -72,6 +72,16 @@
   <dialog id="detailDialog">
     <button id="closeDialog" class="icon-button close" aria-label="Schließen">×</button>
     <div id="detailContent"></div>
+  </dialog>
+
+  <dialog id="settingsPinDialog" class="pin-modal">
+    <form id="settingsPinForm" class="pin-card">
+      <p class="eyebrow">EINSTELLUNGEN</p><h2>PIN eingeben</h2>
+      <p class="settings-help">PIN eingeben, um die Einstellungen zu öffnen.</p>
+      <input id="settingsPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN">
+      <p id="settingsPinError" class="pin-error hidden">PIN ist nicht korrekt.</p>
+      <div class="actions"><button id="cancelSettingsPin" type="button" class="secondary">Abbrechen</button><button type="submit" class="primary">Öffnen</button></div>
+    </form>
   </dialog>
 
   <dialog id="settingsDialog">

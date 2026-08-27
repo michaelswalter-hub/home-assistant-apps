@@ -18,6 +18,12 @@ const booksViewButton = document.getElementById("booksViewButton");
 const seriesViewButton = document.getElementById("seriesViewButton");
 const newViewButton = document.getElementById("newViewButton");
 const settingsButton = document.getElementById("settingsButton");
+const libraryTitle = document.getElementById("libraryTitle");
+const settingsPinDialog = document.getElementById("settingsPinDialog");
+const settingsPinForm = document.getElementById("settingsPinForm");
+const settingsPinInput = document.getElementById("settingsPinInput");
+const settingsPinError = document.getElementById("settingsPinError");
+const cancelSettingsPin = document.getElementById("cancelSettingsPin");
 const settingsDialog = document.getElementById("settingsDialog");
 const metadataDialog = document.getElementById("metadataDialog");
 const metadataCandidates = document.getElementById("metadataCandidates");
@@ -1327,6 +1333,45 @@ if (closeMetadata && metadataDialog) {
   closeMetadata.addEventListener("click", () => metadataDialog.close());
 }
 }
+
+function openSettingsPinDialog() {
+  settingsPinError?.classList.add("hidden");
+  if (settingsPinInput) settingsPinInput.value = "";
+  settingsPinDialog?.showModal();
+  setTimeout(() => settingsPinInput?.focus(), 50);
+}
+let settingsHoldTimer = null;
+function cancelSettingsHold() {
+  if (settingsHoldTimer) clearTimeout(settingsHoldTimer);
+  settingsHoldTimer = null;
+}
+if (libraryTitle) {
+  libraryTitle.addEventListener("pointerdown", () => {
+    cancelSettingsHold();
+    settingsHoldTimer = setTimeout(() => {
+      settingsHoldTimer = null;
+      openSettingsPinDialog();
+    }, 5000);
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(name => libraryTitle.addEventListener(name, cancelSettingsHold));
+  libraryTitle.addEventListener("contextmenu", event => event.preventDefault());
+}
+cancelSettingsPin?.addEventListener("click", () => settingsPinDialog?.close());
+settingsPinForm?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const response = await fetch(api("settings/unlock"), {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({pin: settingsPinInput?.value || ""})
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) {
+    settingsPinError?.classList.remove("hidden");
+    settingsPinInput?.select();
+    return;
+  }
+  settingsPinDialog.close();
+  settingsButton.click();
+});
 
 settingsButton.addEventListener("click", () => {
   renderSeriesManager();
