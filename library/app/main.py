@@ -128,7 +128,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "0.9.16"})
+    return jsonify({"status": "ok", "version": "0.9.18"})
 
 @app.get("/api/books")
 def list_books():
@@ -478,25 +478,32 @@ def apply_metadata_candidate(book_id: str):
     if not isinstance(candidate, dict):
         return jsonify({"error": "Kein gültiger Metadaten-Treffer übergeben."}), 400
 
-    allowed = {
-        "subtitle", "author", "description", "isbn",
+    selectable = {
+        "title", "subtitle", "author", "description", "isbn",
         "publisher", "published_date", "language",
     }
+    requested_fields = data.get("fields")
+    if not isinstance(requested_fields, list):
+        # Backward compatibility with older clients.
+        requested_fields = list(selectable) + ["cover"]
+    selected = {str(field) for field in requested_fields}
+
     values = {}
-    for key in allowed:
+    for key in selectable:
+        if key not in selected:
+            continue
         value = candidate.get(key)
         if value not in (None, ""):
-            # Title is deliberately not overwritten. Other selected edition
-            # metadata may be replaced because the user explicitly chose it.
             values[key] = str(value).strip() or None
 
     cover_url = candidate.get("cover_url")
-    if cover_url:
+    if "cover" in selected and cover_url:
         cover = download_cover(cover_url, Path(book["storage_path"]).parent)
         if cover:
             values["cover_path"] = str(cover)
 
-    values["metadata_source"] = candidate.get("metadata_source") or "Online"
+    if values:
+        values["metadata_source"] = candidate.get("metadata_source") or "Online"
     values["updated_at"] = utcnow()
     db.update_book(book_id, values)
     return jsonify(public_book(db.get_book(book_id)))

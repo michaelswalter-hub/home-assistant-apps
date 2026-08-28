@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.18
+
+- Metadaten-Felder sind standardmäßig nicht ausgewählt
+- zusätzliche Schnellwahl `Alle auswählen` und `Auswahl löschen`
+- Rand, Breite und Überlauf des Metadaten-Fensters korrigiert
+- mobile Darstellung der Metadaten-Auswahl verbessert
+
+## 0.9.17
+
+- `Cover laden` beim Bearbeiten nur noch als kompakter Button ohne Rahmen
+- bei jedem Metadaten-Treffer einzelne Felder auswählbar
+- auswählbar: Titel, Untertitel, Autor, Zusammenfassung, ISBN, Verlag, Erscheinungsdatum, Sprache und Cover
+- nur angehakte Felder werden übernommen
+- Auswahl funktioniert auch bei KI-Websuche-Treffern
+
 ## 0.9.16
 
 - Cover in Übersicht, Serienansicht und Detailansicht verwenden denselben Cache-Stand

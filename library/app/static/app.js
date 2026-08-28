@@ -635,15 +635,9 @@ function showEditBook(book) {
       <div>
         <h2>Buch bearbeiten</h2>
 
-        <section class="edit-cover-source">
-          <div>
-            <h3>Cover</h3>
-            <p class="settings-help">Lade ein Cover und wähle anschließend zwischen lokalem Bild und Internetsuche.</p>
-          </div>
-          <div class="edit-cover-source-actions">
-            <button id="loadCoverFromEdit" type="button" class="secondary">Cover laden</button>
-          </div>
-        </section>
+        <div class="edit-cover-load">
+          <button id="loadCoverFromEdit" type="button" class="secondary">Cover laden</button>
+        </div>
 
         <section id="coverManager" class="cover-manager hidden">
           <div class="cover-manager-head">
@@ -1057,6 +1051,53 @@ function amazonSearchUrl(candidate) {
 }
 
 
+function metadataFieldSelectorHtml(candidate) {
+  const fields = [
+    ["title", "Titel", candidate.title],
+    ["subtitle", "Untertitel", candidate.subtitle],
+    ["author", "Autor", candidate.author],
+    ["description", "Zusammenfassung", candidate.description],
+    ["isbn", "ISBN", candidate.isbn],
+    ["publisher", "Verlag", candidate.publisher],
+    ["published_date", "Erscheinungsdatum", candidate.published_date],
+    ["language", "Sprache", candidate.language],
+    ["cover", "Cover", candidate.cover_url],
+  ].filter(([, , value]) => value !== undefined && value !== null && String(value).trim() !== "");
+
+  if (!fields.length) return "";
+
+  return `
+    <fieldset class="metadata-field-selector">
+      <legend>Was soll übernommen werden?</legend>
+      <div class="metadata-field-select-actions">
+        <button type="button" class="metadata-select-all">Alle auswählen</button>
+        <button type="button" class="metadata-select-none">Auswahl löschen</button>
+      </div>
+      <div class="metadata-field-options">
+        ${fields.map(([key, label]) => `
+          <label>
+            <input type="checkbox" name="metadata_field" value="${key}">
+            <span>${label}</span>
+          </label>
+        `).join("")}
+      </div>
+    </fieldset>
+  `;
+}
+
+function bindMetadataFieldSelector(card) {
+  card.querySelector(".metadata-select-all")?.addEventListener("click", () => {
+    card.querySelectorAll('input[name="metadata_field"]').forEach(input => input.checked = true);
+  });
+  card.querySelector(".metadata-select-none")?.addEventListener("click", () => {
+    card.querySelectorAll('input[name="metadata_field"]').forEach(input => input.checked = false);
+  });
+}
+
+function selectedMetadataFields(card) {
+  return [...card.querySelectorAll('input[name="metadata_field"]:checked')].map(input => input.value);
+}
+
 function renderAiCandidate(book, candidate) {
   const card = document.createElement("article");
   card.className = "metadata-candidate ai-candidate";
@@ -1074,6 +1115,7 @@ function renderAiCandidate(book, candidate) {
       ${candidate.notes ? `<p class="metadata-summary-preview">${esc(candidate.notes)}</p>` : ""}
       <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung gefunden.")}</p>
       ${sources.length ? `<div class="ai-sources"><strong>Quellen:</strong>${sources.slice(0, 5).map(url => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`).join("")}</div>` : ""}
+      ${metadataFieldSelectorHtml(candidate)}
       <div class="metadata-candidate-actions">
         <button class="primary choose-ai-metadata" type="button">KI-Treffer übernehmen</button>
         <a class="secondary amazon-search" target="_blank" rel="noopener noreferrer">Auf Amazon suchen</a>
@@ -1082,6 +1124,7 @@ function renderAiCandidate(book, candidate) {
   `;
 
   card.querySelector(".amazon-search").href = amazonSearchUrl(candidate);
+  bindMetadataFieldSelector(card);
   card.querySelector(".choose-ai-metadata").addEventListener("click", async () => {
     const button = card.querySelector(".choose-ai-metadata");
     button.disabled = true;
@@ -1090,7 +1133,7 @@ function renderAiCandidate(book, candidate) {
       const apply = await fetch(api(`books/${book.id}/metadata-candidates/apply`), {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({candidate})
+        body: JSON.stringify({candidate, fields})
       });
       const result = await apply.json();
       if (!apply.ok) throw new Error(result.error || "Metadaten konnten nicht übernommen werden.");
@@ -1186,15 +1229,23 @@ async function showMetadataCandidates(book) {
         <p><strong>Quelle:</strong> <span class="metadata-source-badge">${esc(candidate.metadata_source || "Online")}</span></p>
         ${candidate.description_source ? `<p><strong>Zusammenfassung:</strong> ${esc(candidate.description_source)}</p>` : ""}
         <p class="metadata-summary-preview">${esc(candidate.description || "Keine Zusammenfassung in diesem Treffer.")}</p>
+        ${metadataFieldSelectorHtml(candidate)}
         <div class="metadata-candidate-actions">
           <button class="primary choose-metadata" type="button">Diesen Treffer übernehmen</button>
           <a class="secondary amazon-search" target="_blank" rel="noopener noreferrer">Auf Amazon suchen</a>
         </div>
       </div>`;
     card.querySelector(".amazon-search").href = amazonSearchUrl(candidate);
+    bindMetadataFieldSelector(card);
     card.querySelector(".choose-metadata").addEventListener("click", async () => {
       const button=card.querySelector(".choose-metadata"); button.disabled=true; button.textContent="Übernehme …";
       try {
+        const fields = selectedMetadataFields(card);
+        if (!fields.length) {
+          alert("Bitte wähle mindestens ein Feld aus.");
+          button.disabled=false;
+          return;
+        }
         const apply=await fetch(api(`books/${book.id}/metadata-candidates/apply`),{
           method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidate})
         });
