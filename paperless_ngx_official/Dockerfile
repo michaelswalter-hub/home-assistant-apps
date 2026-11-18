@@ -45,6 +45,7 @@ RUN chmod +x \
       /usr/local/bin/ha-config.py \
       /etc/s6-overlay/s6-rc.d/init-ha-config/run \
       /etc/s6-overlay/s6-rc.d/init-postgres/run \
+      /etc/s6-overlay/s6-rc.d/init-migrate-old/run \
       /etc/s6-overlay/s6-rc.d/init-postgres-db/run \
       /etc/s6-overlay/s6-rc.d/svc-postgres/run \
       /etc/s6-overlay/s6-rc.d/svc-redis/run

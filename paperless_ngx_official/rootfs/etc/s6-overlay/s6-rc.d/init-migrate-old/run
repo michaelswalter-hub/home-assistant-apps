@@ -1,0 +1,118 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# Einmaliger Umzug aus der App "Paperless-ngx" von Benoit Anastay (SQLite) in diese App.
+# Ablauf: alte DB kopieren -> Kopie auf aktuelle Version migrieren -> offizieller Export
+#         -> neue DB leeren -> offizieller Import. Die alte App und ihre Daten bleiben unverändert.
+set -euo pipefail
+
+declare -r log_prefix="[migrate-old]"
+declare -r marker="/data/migration_old_app.done"
+declare -r work="/share/paperless-ngx/migration"
+declare -r old_db_dir="${HA_MIGRATE_OLD_DATA_DIR:-/addon_configs/ca5234a0_paperless-ngx/data}"
+declare -r old_media="${HA_MIGRATE_OLD_MEDIA_DIR:-/share/paperless/media}"
+declare -r pgbin="/usr/lib/postgresql/current/bin"
+
+if [[ "${HA_MIGRATE_OLD_APP:-false}" != "true" ]]; then
+	exit 0
+fi
+if [[ -f "${marker}" ]] && ! grep -q "^fehlgeschlagen" "${marker}"; then
+	echo "${log_prefix} Umzug wurde bereits durchgeführt ($(cat "${marker}")) – übersprungen."
+	exit 0
+fi
+
+cd "${PAPERLESS_SRC_DIR}"
+
+as_paperless() {
+	s6-setuidgid paperless "$@"
+}
+
+new_doc_count=$(as_paperless python3 manage.py shell -c \
+	"from documents.models import Document; print(Document.global_objects.count())" 2>/dev/null | tail -n1 || echo "?")
+if [[ "${new_doc_count}" != "0" ]]; then
+	echo "${log_prefix} ABBRUCH: Die neue App enthält bereits ${new_doc_count} Dokumente. Es wird nichts verändert."
+	exit 0
+fi
+
+if [[ ! -f "${old_db_dir}/db.sqlite3" ]]; then
+	echo "${log_prefix} ABBRUCH: Alte Datenbank ${old_db_dir}/db.sqlite3 nicht gefunden."
+	exit 0
+fi
+
+db_reset=false
+on_error() {
+	echo "${log_prefix} FEHLER in Zeile ${1} – Umzug abgebrochen. Die alte App ist unverändert."
+	if [[ "${db_reset}" == "true" ]]; then
+		echo "${log_prefix} Setze die neue Datenbank auf leer zurück"
+		"${pgbin}/dropdb" -h 127.0.0.1 -U paperless --if-exists paperless || true
+		"${pgbin}/createdb" -h 127.0.0.1 -U paperless paperless || true
+		as_paperless python3 manage.py migrate --no-input || true
+	fi
+	echo "fehlgeschlagen $(date -Iseconds)" > "${marker}"
+	echo "${log_prefix} Beim nächsten Start der App wird es erneut versucht (solange die Option aktiv ist)."
+	exit 0
+}
+trap 'on_error ${LINENO}' ERR
+
+echo "${log_prefix} Starte Umzug aus der alten App"
+rm -rf "${work}"
+mkdir -p "${work}/data" "${work}/export"
+chown -R paperless:paperless "${work}"
+
+# 1) Konsistente Kopie der alten SQLite-Datenbank (Quelle nur lesend)
+python3 - "${old_db_dir}/db.sqlite3" "${work}/data/db.sqlite3" <<'PY'
+import sqlite3, sys
+src = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro&immutable=1", uri=True)
+dst = sqlite3.connect(sys.argv[2])
+src.backup(dst)
+dst.close(); src.close()
+PY
+chown paperless:paperless "${work}/data/db.sqlite3"
+echo "${log_prefix} Alte Datenbank kopiert"
+
+# 2) Kopie auf die aktuelle Version bringen und exportieren (alte Dateien werden nur gelesen)
+old_env=(env -u PAPERLESS_DBHOST -u PAPERLESS_DBPORT -u PAPERLESS_DBNAME -u PAPERLESS_DBUSER
+	-u PAPERLESS_DBPASS -u PAPERLESS_DBSSLMODE
+	PAPERLESS_DBENGINE=sqlite
+	PAPERLESS_DATA_DIR="${work}/data"
+	PAPERLESS_MEDIA_ROOT="${old_media}")
+
+"${old_env[@]}" python3 manage.py migrate --no-input
+echo "${log_prefix} Exportiere Dokumente und Metadaten ..."
+"${old_env[@]}" python3 manage.py document_exporter "${work}/export"
+chown -R paperless:paperless "${work}"
+echo "${log_prefix} Export fertig"
+
+# 3) Neue Datenbank leeren (enthält nur das Start-Admin-Konto) und neu aufsetzen
+export PGPASSWORD="${PAPERLESS_DBPASS}"
+db_reset=true
+"${pgbin}/dropdb" -h 127.0.0.1 -U paperless --if-exists paperless
+"${pgbin}/createdb" -h 127.0.0.1 -U paperless paperless
+as_paperless python3 manage.py migrate --no-input
+
+# 4) Offizieller Import
+echo "${log_prefix} Importiere in die neue App ..."
+as_paperless python3 manage.py document_importer "${work}/export"
+
+# 5) Sicherstellen, dass das Admin-Konto aus den App-Optionen funktioniert
+if [[ -n "${PAPERLESS_ADMIN_USER:-}" && -n "${PAPERLESS_ADMIN_PASSWORD:-}" ]]; then
+	as_paperless python3 manage.py shell -c "
+import os
+from django.contrib.auth.models import User
+u, created = User.objects.get_or_create(username=os.environ['PAPERLESS_ADMIN_USER'])
+u.is_superuser = True
+u.is_staff = True
+u.is_active = True
+u.set_password(os.environ['PAPERLESS_ADMIN_PASSWORD'])
+u.save()
+print('Admin-Konto', 'angelegt' if created else 'aktualisiert')
+"
+fi
+
+count=$(as_paperless python3 manage.py shell -c \
+	"from documents.models import Document; print(Document.global_objects.count())" 2>/dev/null | tail -n1)
+trap - ERR
+date -Iseconds > "${marker}"
+echo "${log_prefix} Umzug abgeschlossen: ${count} Dokumente übernommen"
+
+# Export wird nicht mehr gebraucht (Originale liegen weiter unverändert in der alten App)
+rm -rf "${work}"

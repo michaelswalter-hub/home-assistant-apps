@@ -1,3 +1,7 @@
+## 3.5.1-4
+
+Neu: Option migrate_from_old_app – einmaliger Umzug aus der App „Paperless-ngx“ von Benoit Anastay.
+
 ## 3.5.1-3
 
 Korrektur: Nach dem Login wurde Home Assistant doppelt angezeigt (fehlendes Ingress-Präfix). Behebt auch die Live-Statusanzeige.

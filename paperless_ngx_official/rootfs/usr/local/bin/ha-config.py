@@ -96,6 +96,8 @@ def main() -> int:
         "USERMAP_GID": opts.get("usermap_gid"),
     }
 
+    env["HA_MIGRATE_OLD_APP"] = bool(opts.get("migrate_from_old_app"))
+
     url = opts.get("url")
     if url:
         env["PAPERLESS_URL"] = url.rstrip("/")

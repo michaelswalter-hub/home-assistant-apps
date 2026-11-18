@@ -1,5 +1,5 @@
 name: Paperless-ngx (offiziell)
-version: "3.5.1-3"
+version: "3.5.1-4"
 slug: paperless_ngx_official
 description: >-
   Paperless-ngx direkt aus dem offiziellen Image
@@ -22,6 +22,7 @@ hassio_api: true
 homeassistant_api: false
 map:
   - share:rw
+  - all_addon_configs:ro
 options:
   admin_user: admin
   admin_password: ""
@@ -30,6 +31,7 @@ options:
   filename_format: "{{ created_year }}/{{ correspondent }}/{{ title }}"
   media_dir: /share/paperless-ngx/media
   consume_dir: /share/paperless-ngx/consume
+  migrate_from_old_app: false
   env_vars: []
 schema:
   admin_user: str
@@ -46,5 +48,6 @@ schema:
   tika_enabled: bool?
   tika_endpoint: url?
   gotenberg_endpoint: url?
+  migrate_from_old_app: bool
   env_vars:
     - match(^[A-Z][A-Z0-9_]*=.*$)
