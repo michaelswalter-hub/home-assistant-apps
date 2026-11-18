@@ -1,3 +1,8 @@
+## 3.5.1-8
+
+- Benachrichtigung: Vorschau zeigt jetzt die komplette erste Seite in guter Auflösung
+- Veraltete Variable PAPERLESS_DBSSLMODE entfernt
+
 ## 3.5.1-7
 
 Korrektur: Hochladen über die Seitenleiste (Home Assistant streamt Uploads ohne Content-Length).

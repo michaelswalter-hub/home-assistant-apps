@@ -45,13 +45,52 @@ def document_details(doc_id: int) -> dict:
     }
 
 
+PREVIEW_MAX_PX = 1400  # längste Seite der Vorschau
+
+
+def _render_first_page(pdf: str, target: Path) -> bool:
+    """Erste Seite komplett als JPEG rendern (pdftoppm ist im offiziellen Image enthalten)."""
+    import subprocess
+
+    prefix = target.with_suffix("")
+    result = subprocess.run(
+        ["pdftoppm", "-f", "1", "-l", "1", "-singlefile", "-jpeg",
+         "-jpegopt", "quality=82", "-scale-to", str(PREVIEW_MAX_PX), pdf, str(prefix)],
+        capture_output=True, timeout=60, check=False,
+    )
+    return result.returncode == 0 and target.exists()
+
+
 def save_preview(doc_id: int, thumb: str) -> str:
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     target = MEDIA_DIR / f"{doc_id}.jpg"
     from PIL import Image
 
-    with Image.open(thumb) as img:
-        img.convert("RGB").save(target, "JPEG", quality=85)
+    # 1. Wahl: ganze erste Seite aus dem Archiv-PDF bzw. dem Original-PDF
+    candidates = [os.environ.get("DOCUMENT_ARCHIVE_PATH", ""), os.environ.get("DOCUMENT_SOURCE_PATH", "")]
+    done = False
+    for path in candidates:
+        if path and path.lower().endswith(".pdf") and Path(path).exists():
+            try:
+                done = _render_first_page(path, target)
+            except Exception as exc:  # noqa: BLE001
+                log(f"Seite nicht gerendert: {exc}")
+            if done:
+                break
+    # 2. Wahl: Originalbild (z. B. Foto/Scan als JPG/PNG)
+    source = os.environ.get("DOCUMENT_SOURCE_PATH", "")
+    if not done and source and Path(source).suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".gif", ".bmp"):
+        try:
+            with Image.open(source) as img:
+                img.thumbnail((PREVIEW_MAX_PX, PREVIEW_MAX_PX))
+                img.convert("RGB").save(target, "JPEG", quality=82)
+            done = True
+        except Exception as exc:  # noqa: BLE001
+            log(f"Originalbild nicht verwendbar: {exc}")
+    # 3. Wahl: Paperless-Vorschaubild
+    if not done:
+        with Image.open(thumb) as img:
+            img.convert("RGB").save(target, "JPEG", quality=85)
     # alte Vorschauen aufräumen
     cutoff = time.time() - KEEP_DAYS * 86400
     for f in MEDIA_DIR.glob("*.jpg"):
@@ -93,8 +132,7 @@ def main() -> None:
         log(f"Details nicht lesbar: {exc}")
     try:
         thumb = os.environ.get("DOCUMENT_THUMBNAIL_PATH", "")
-        if thumb and Path(thumb).exists():
-            data["image"] = save_preview(doc_id, thumb)
+        data["image"] = save_preview(doc_id, thumb)
     except Exception as exc:  # noqa: BLE001
         log(f"Vorschau nicht erstellt: {exc}")
     try:

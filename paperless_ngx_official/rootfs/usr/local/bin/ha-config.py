@@ -84,7 +84,6 @@ def main() -> int:
         "PAPERLESS_DBNAME": "paperless",
         "PAPERLESS_DBUSER": "paperless",
         "PAPERLESS_DBPASS": persistent_secret("postgres_password", 32),
-        "PAPERLESS_DBSSLMODE": "disable",
         # Einstellungen
         "PAPERLESS_TIME_ZONE": opts.get("timezone") or os.environ.get("TZ") or "UTC",
         "PAPERLESS_OCR_LANGUAGE": opts.get("ocr_language") or "deu",
