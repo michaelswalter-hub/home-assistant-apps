@@ -58,8 +58,46 @@ def _restore_ingress_prefix(scope):
     return new_scope
 
 
+def _needs_content_length(scope) -> bool:
+    """Ingress streamt Uploads ohne Content-Length; Django erkennt dann keine Dateien."""
+    if scope.get("type") != "http" or scope.get("method") not in ("POST", "PUT", "PATCH"):
+        return False
+    names = {name.lower() for name, _ in scope.get("headers") or []}
+    return b"x-ingress-path" in names and b"content-length" not in names
+
+
+async def _buffer_body(scope, receive):
+    chunks = []
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return None, None
+        chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            break
+    body = b"".join(chunks)
+    headers = [
+        (n, v) for n, v in scope.get("headers") or [] if n.lower() != b"transfer-encoding"
+    ]
+    headers.append((b"content-length", str(len(body)).encode()))
+    sent = False
+
+    async def replay():
+        nonlocal sent
+        if not sent:
+            sent = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        return await receive()
+
+    return {**scope, "headers": headers}, replay
+
+
 async def application(scope, receive, send):
     if scope.get("type") in ("http", "websocket"):
         scope = _rewrite_null_origin(scope)
         scope = _restore_ingress_prefix(scope)
+        if _needs_content_length(scope):
+            scope, receive = await _buffer_body(scope, receive)
+            if scope is None:
+                return
     await paperless_application(scope, receive, send)

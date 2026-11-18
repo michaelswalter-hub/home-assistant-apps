@@ -1,3 +1,7 @@
+## 3.5.1-7
+
+Korrektur: Hochladen über die Seitenleiste (Home Assistant streamt Uploads ohne Content-Length).
+
 ## 3.5.1-6
 
 Neu: Option ha_notify – bei neuen Dokumenten Ereignis `paperless_document_added` in Home Assistant mit Vorschau unter /media/local/paperless/<id>.jpg.
