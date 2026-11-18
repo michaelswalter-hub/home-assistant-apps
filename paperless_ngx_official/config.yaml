@@ -1,5 +1,5 @@
 name: Paperless-ngx (offiziell)
-version: "3.5.1-4"
+version: "3.5.1-5"
 slug: paperless_ngx_official
 description: >-
   Paperless-ngx direkt aus dem offiziellen Image
@@ -20,6 +20,10 @@ panel_icon: mdi:file-document-multiple
 panel_title: Paperless
 hassio_api: true
 homeassistant_api: false
+ports:
+  8000/tcp: null
+ports_description:
+  8000/tcp: Direkter Zugriff für Handy-Apps (z. B. Paperparrot) – nur im Heimnetz/VPN
 map:
   - share:rw
   - all_addon_configs:ro
@@ -31,6 +35,7 @@ options:
   filename_format: "{{ created_year }}/{{ correspondent }}/{{ title }}"
   media_dir: /share/paperless-ngx/media
   consume_dir: /share/paperless-ngx/consume
+  tika_enabled: true
   migrate_from_old_app: false
   env_vars: []
 schema:

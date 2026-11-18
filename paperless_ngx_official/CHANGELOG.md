@@ -1,3 +1,8 @@
+## 3.5.1-5
+
+- Optionaler direkter Port (8000/tcp) für Handy-Apps wie Paperparrot
+- Tika/Gotenberg standardmäßig aktiv, nutzt die Apps „Tika (offiziell)“ und „Gotenberg (offiziell)“
+
 ## 3.5.1-4
 
 Neu: Option migrate_from_old_app – einmaliger Umzug aus der App „Paperless-ngx“ von Benoit Anastay.

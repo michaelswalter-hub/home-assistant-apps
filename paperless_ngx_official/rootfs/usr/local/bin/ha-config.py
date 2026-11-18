@@ -104,8 +104,14 @@ def main() -> int:
 
     if opts.get("tika_enabled"):
         env["PAPERLESS_TIKA_ENABLED"] = True
-        env["PAPERLESS_TIKA_ENDPOINT"] = opts.get("tika_endpoint") or ""
-        env["PAPERLESS_TIKA_GOTENBERG_ENDPOINT"] = opts.get("gotenberg_endpoint") or ""
+        # Standard: die offiziellen Tika-/Gotenberg-Apps aus demselben Repository
+        repo = os.environ.get("HOSTNAME", "").split("-")[0] or "1a52d194"
+        env["PAPERLESS_TIKA_ENDPOINT"] = (
+            opts.get("tika_endpoint") or f"http://{repo}-tika-official:9998"
+        )
+        env["PAPERLESS_TIKA_GOTENBERG_ENDPOINT"] = (
+            opts.get("gotenberg_endpoint") or f"http://{repo}-gotenberg-official:3000"
+        )
 
     if not env["PAPERLESS_ADMIN_PASSWORD"]:
         env.pop("PAPERLESS_ADMIN_USER")

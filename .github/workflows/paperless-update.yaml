@@ -14,48 +14,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Neueste offizielle Version holen
+      - name: Neueste offizielle Versionen holen
         id: latest
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=$(gh api repos/paperless-ngx/paperless-ngx/releases/latest --jq .tag_name)
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-          echo "Offiziell: ${tag}"
+          echo "paperless=${tag#v}" >> "$GITHUB_OUTPUT"
+          # Tika/Gotenberg in genau den Versionen, die Paperless-ngx selbst vorgibt
+          compose=$(curl -fsSL "https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/${tag}/docker/compose/docker-compose.postgres-tika.yml")
+          gotenberg=$(echo "$compose" | grep -oE 'gotenberg/gotenberg:[0-9][0-9.]*' | head -1 | cut -d: -f2)
+          tika=$(echo "$compose" | grep -oE 'apache/tika:[0-9][0-9.]*' | head -1 | cut -d: -f2)
+          echo "gotenberg=${gotenberg}" >> "$GITHUB_OUTPUT"
+          echo "tika=${tika}" >> "$GITHUB_OUTPUT"
+          echo "Offiziell: Paperless ${tag}, Gotenberg ${gotenberg}, Tika ${tika}"
 
-      - name: Version der App vergleichen und erhöhen
+      - name: Versionen vergleichen und erhöhen
         id: bump
         env:
-          NEW: ${{ steps.latest.outputs.version }}
+          PAPERLESS: ${{ steps.latest.outputs.paperless }}
+          GOTENBERG: ${{ steps.latest.outputs.gotenberg }}
+          TIKA: ${{ steps.latest.outputs.tika }}
         run: |
-          cfg=paperless_ngx_official/config.yaml
-          current=$(grep -E '^ARG PAPERLESS_VERSION=' paperless_ngx_official/Dockerfile | cut -d= -f2)
-          echo "App: ${current}"
-          if [ -z "$NEW" ] || [ "$NEW" = "$current" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          # Nur echte, höhere Versionen übernehmen (keine Betas/RCs)
-          if ! echo "$NEW" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Überspringe Vorab-Version $NEW"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          if [ "$(printf '%s\n%s\n' "$current" "$NEW" | sort -V | tail -1)" != "$NEW" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          sed -i -E "s/^version: .*/version: \"${NEW}\"/" "$cfg"
-          sed -i -E "s/^ARG PAPERLESS_VERSION=.*/ARG PAPERLESS_VERSION=${NEW}/" paperless_ngx_official/Dockerfile
-          {
-            echo "## ${NEW}"
-            echo
-            echo "Offizielles Paperless-ngx ${NEW}: https://github.com/paperless-ngx/paperless-ngx/releases/tag/v${NEW}"
-            echo
-            cat paperless_ngx_official/CHANGELOG.md
-          } > /tmp/cl && mv /tmp/cl paperless_ngx_official/CHANGELOG.md
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          changed=false
+          msg=""
+
+          # bump <app-ordner> <ARG-Name> <neue Version> <Muster für gültige Versionen>
+          bump() {
+            local app=$1 arg=$2 new=$3 pattern=$4
+            local current
+            current=$(grep -E "^ARG ${arg}=" "${app}/Dockerfile" | cut -d= -f2)
+            echo "${app}: ${current} -> ${new:-?}"
+            [ -n "$new" ] || return 0
+            echo "$new" | grep -Eq "$pattern" || { echo "Überspringe ungültige Version $new"; return 0; }
+            [ "$new" != "$current" ] || return 0
+            [ "$(printf '%s\n%s\n' "$current" "$new" | sort -V | tail -1)" = "$new" ] || return 0
+            sed -i -E "s/^version: .*/version: \"${new}\"/" "${app}/config.yaml"
+            sed -i -E "s/^ARG ${arg}=.*/ARG ${arg}=${new}/" "${app}/Dockerfile"
+            { printf '## %s\n\nOffizielle Version %s (passend zu Paperless-ngx %s).\n\n' "$new" "$new" "$PAPERLESS"
+              cat "${app}/CHANGELOG.md"; } > /tmp/cl && mv /tmp/cl "${app}/CHANGELOG.md"
+            changed=true
+            msg="${msg} ${app}=${new}"
+          }
+
+          bump paperless_ngx_official PAPERLESS_VERSION "$PAPERLESS" '^[0-9]+\.[0-9]+\.[0-9]+$'
+          bump gotenberg_official GOTENBERG_VERSION "$GOTENBERG" '^[0-9]+(\.[0-9]+)+$'
+          bump tika_official TIKA_VERSION "$TIKA" '^[0-9]+(\.[0-9]+)+$'
+
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          echo "msg=${msg# }" >> "$GITHUB_OUTPUT"
 
       - name: Commit & Push
         if: steps.bump.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Paperless-ngx auf ${{ steps.latest.outputs.version }} aktualisieren"
+          git commit -am "Offizielle Versionen aktualisieren: ${{ steps.bump.outputs.msg }}"
           git push

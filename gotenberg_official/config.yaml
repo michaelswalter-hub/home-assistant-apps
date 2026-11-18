@@ -1,0 +1,13 @@
+name: Gotenberg (offiziell)
+version: "8.38"
+slug: gotenberg_official
+description: >-
+  Offizielles Gotenberg-Image (docker.io/gotenberg/gotenberg) für Paperless-ngx:
+  wandelt Office-Dokumente und E-Mails in PDF um. Nur intern erreichbar.
+url: https://github.com/gotenberg/gotenberg
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+init: false
