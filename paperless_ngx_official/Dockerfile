@@ -31,6 +31,16 @@ ENV PG_MAJOR=${PG_MAJOR} \
 
 COPY rootfs /
 
+# Webserver auf die Ingress-Hülle umstellen (siehe ha_ingress_asgi.py).
+# Schlägt der Build hier fehl, hat sich das offizielle Startskript geändert.
+RUN set -eux; \
+    site="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    cp /usr/local/share/ha-ingress/ha_ingress_asgi.py "${site}/"; \
+    run=/etc/s6-overlay/s6-rc.d/svc-webserver/run; \
+    grep -q '"paperless.asgi:application"' "${run}"; \
+    sed -i 's#"paperless.asgi:application"#"ha_ingress_asgi:application"#g' "${run}"; \
+    grep -q '"ha_ingress_asgi:application"' "${run}"
+
 RUN chmod +x \
       /usr/local/bin/ha-config.py \
       /etc/s6-overlay/s6-rc.d/init-ha-config/run \

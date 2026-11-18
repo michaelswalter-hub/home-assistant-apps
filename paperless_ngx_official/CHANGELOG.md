@@ -1,3 +1,7 @@
+## 3.5.1-2
+
+Korrektur: Anmeldung über die Seitenleiste (CSRF „Origin null“ wegen Referrer-Policy von Home Assistant).
+
 ## 3.5.1-1
 
 Korrektur: PostgreSQL-Pfad im Image.
