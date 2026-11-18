@@ -1,7 +1,6 @@
-# Home Assistant übergibt die Version aus config.yaml als BUILD_VERSION.
-# Damit wird immer genau das offizielle Paperless-ngx-Image dieser Version genutzt.
-ARG BUILD_VERSION=3.5.1
-FROM ghcr.io/paperless-ngx/paperless-ngx:${BUILD_VERSION}
+# Offizielle Paperless-ngx-Version (wird von der GitHub Action automatisch erhöht).
+ARG PAPERLESS_VERSION=3.5.1
+FROM ghcr.io/paperless-ngx/paperless-ngx:${PAPERLESS_VERSION}
 
 # PostgreSQL-Hauptversion bewusst festgenagelt (wie im offiziellen Compose-Setup).
 # Ein Wechsel der Hauptversion erfordert eine Datenmigration – nie automatisch ändern.
@@ -23,7 +22,8 @@ RUN set -eux; \
     apt-get purge --yes gnupg; \
     apt-get autoremove --yes; \
     rm -rf /var/lib/apt/lists/*; \
-    ln -s "/usr/lib/postgresql/${PG_MAJOR}/bin" /usr/lib/postgresql/current
+    ln -s "/usr/lib/postgresql/${PG_MAJOR}" /usr/lib/postgresql/current; \
+    test -x /usr/lib/postgresql/current/bin/initdb
 
 ENV PG_MAJOR=${PG_MAJOR} \
     S6_SERVICES_GRACETIME=30000 \
@@ -39,5 +39,4 @@ RUN chmod +x \
       /etc/s6-overlay/s6-rc.d/svc-postgres/run \
       /etc/s6-overlay/s6-rc.d/svc-redis/run
 
-LABEL io.hass.type="addon" \
-      io.hass.version="${BUILD_VERSION}"
+LABEL io.hass.type="addon"
