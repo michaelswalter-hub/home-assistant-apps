@@ -1,3 +1,7 @@
+## 3.5.1-3
+
+Korrektur: Nach dem Login wurde Home Assistant doppelt angezeigt (fehlendes Ingress-Präfix). Behebt auch die Live-Statusanzeige.
+
 ## 3.5.1-2
 
 Korrektur: Anmeldung über die Seitenleiste (CSRF „Origin null“ wegen Referrer-Policy von Home Assistant).

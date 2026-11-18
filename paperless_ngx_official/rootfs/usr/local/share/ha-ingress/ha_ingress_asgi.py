@@ -33,7 +33,33 @@ def _rewrite_null_origin(scope):
     return {**scope, "headers": new_headers}
 
 
+def _restore_ingress_prefix(scope):
+    """Home Assistant entfernt den Ingress-Pfad, Django erwartet ihn in ``path``.
+
+    Ohne Präfix entstehen Weiterleitungen wie ``?next=/``, die nach dem Login
+    auf die Home-Assistant-Startseite statt auf Paperless führen.
+    """
+    prefix = None
+    for name, value in scope.get("headers") or []:
+        if name.lower() == b"x-ingress-path":
+            prefix = value.decode("latin-1").rstrip("/")
+            break
+    if not prefix or not prefix.startswith("/api/hassio_ingress/"):
+        return scope
+
+    path = scope.get("path") or "/"
+    if path == prefix or path.startswith(prefix + "/"):
+        return scope
+
+    new_scope = {**scope, "path": prefix + path, "root_path": prefix}
+    raw = scope.get("raw_path")
+    if raw is not None:
+        new_scope["raw_path"] = prefix.encode("latin-1") + raw
+    return new_scope
+
+
 async def application(scope, receive, send):
     if scope.get("type") in ("http", "websocket"):
         scope = _rewrite_null_origin(scope)
+        scope = _restore_ingress_prefix(scope)
     await paperless_application(scope, receive, send)
