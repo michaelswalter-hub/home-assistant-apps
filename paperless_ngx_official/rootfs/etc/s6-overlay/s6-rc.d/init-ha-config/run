@@ -1,0 +1,4 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# Übersetzt die Home-Assistant-App-Optionen in Paperless-Umgebungsvariablen.
+exec python3 /usr/local/bin/ha-config.py

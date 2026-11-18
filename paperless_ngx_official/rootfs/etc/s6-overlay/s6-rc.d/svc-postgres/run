@@ -1,0 +1,8 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# PostgreSQL nur lokal im Container.
+exec s6-setuidgid postgres /usr/lib/postgresql/current/bin/postgres \
+	-D /data/postgres \
+	-c listen_addresses=127.0.0.1 \
+	-c unix_socket_directories=/run/postgresql \
+	-c port=5432

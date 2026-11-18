@@ -1,0 +1,61 @@
+name: Paperless-ngx Update prüfen
+
+on:
+  schedule:
+    - cron: "17 4 * * *" # täglich 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Neueste offizielle Version holen
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api repos/paperless-ngx/paperless-ngx/releases/latest --jq .tag_name)
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "Offiziell: ${tag}"
+
+      - name: Version der App vergleichen und erhöhen
+        id: bump
+        env:
+          NEW: ${{ steps.latest.outputs.version }}
+        run: |
+          cfg=paperless_ngx_official/config.yaml
+          current=$(grep -E '^version:' "$cfg" | sed -E 's/version: *"?([^"]+)"?/\1/')
+          echo "App: ${current}"
+          if [ -z "$NEW" ] || [ "$NEW" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Nur echte, höhere Versionen übernehmen (keine Betas/RCs)
+          if ! echo "$NEW" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Überspringe Vorab-Version $NEW"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$(printf '%s\n%s\n' "$current" "$NEW" | sort -V | tail -1)" != "$NEW" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sed -i -E "s/^version: .*/version: \"${NEW}\"/" "$cfg"
+          sed -i -E "s/^ARG BUILD_VERSION=.*/ARG BUILD_VERSION=${NEW}/" paperless_ngx_official/Dockerfile
+          {
+            echo "## ${NEW}"
+            echo
+            echo "Offizielles Paperless-ngx ${NEW}: https://github.com/paperless-ngx/paperless-ngx/releases/tag/v${NEW}"
+            echo
+            cat paperless_ngx_official/CHANGELOG.md
+          } > /tmp/cl && mv /tmp/cl paperless_ngx_official/CHANGELOG.md
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit & Push
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Paperless-ngx auf ${{ steps.latest.outputs.version }} aktualisieren"
+          git push

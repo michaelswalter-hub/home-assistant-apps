@@ -1,0 +1,10 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# Lokaler Redis nur für die Paperless-Aufgabenwarteschlange (keine Persistenz nötig).
+exec s6-setuidgid redis redis-server \
+	--bind 127.0.0.1 \
+	--port 6379 \
+	--protected-mode yes \
+	--save "" \
+	--appendonly no \
+	--dir /tmp

@@ -1,0 +1,28 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# Wartet, bis PostgreSQL bereit ist, und stellt sicher, dass die Datenbank "paperless" existiert.
+set -euo pipefail
+
+declare -r log_prefix="[init-postgres-db]"
+declare -r pgbin="/usr/lib/postgresql/current/bin"
+export PGPASSWORD="${PAPERLESS_DBPASS}"
+
+for _ in $(seq 1 60); do
+	if "${pgbin}/pg_isready" -h 127.0.0.1 -p 5432 -q; then
+		break
+	fi
+	sleep 1
+done
+
+if ! "${pgbin}/pg_isready" -h 127.0.0.1 -p 5432 -q; then
+	echo "${log_prefix} FEHLER: PostgreSQL ist nicht gestartet"
+	exit 1
+fi
+
+exists=$("${pgbin}/psql" -h 127.0.0.1 -U paperless -d postgres -tAc \
+	"SELECT 1 FROM pg_database WHERE datname='paperless'")
+if [[ "${exists}" != "1" ]]; then
+	echo "${log_prefix} Lege Datenbank 'paperless' an"
+	"${pgbin}/createdb" -h 127.0.0.1 -U paperless paperless
+fi
+echo "${log_prefix} PostgreSQL bereit"

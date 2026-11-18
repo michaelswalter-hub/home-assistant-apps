@@ -1,0 +1,38 @@
+#!/command/with-contenv /usr/bin/bash
+# shellcheck shell=bash
+# Legt beim ersten Start den PostgreSQL-Datenbankcluster im App-Speicher an.
+set -euo pipefail
+
+declare -r log_prefix="[init-postgres]"
+declare -r pgdata="/data/postgres"
+declare -r pgbin="/usr/lib/postgresql/current/bin"
+
+mkdir -p /run/postgresql "${pgdata}"
+chown postgres:postgres /run/postgresql "${pgdata}"
+chmod 700 "${pgdata}"
+
+if [[ -s "${pgdata}/PG_VERSION" ]]; then
+	existing=$(cat "${pgdata}/PG_VERSION")
+	if [[ "${existing}" != "${PG_MAJOR}" ]]; then
+		echo "${log_prefix} FEHLER: Datenbank ist PostgreSQL ${existing}, installiert ist ${PG_MAJOR}."
+		echo "${log_prefix} Bitte zuerst eine Datenmigration durchführen. Es wurde nichts verändert."
+		exit 1
+	fi
+	echo "${log_prefix} Vorhandene Datenbank (PostgreSQL ${existing}) gefunden"
+	exit 0
+fi
+
+echo "${log_prefix} Lege neue Datenbank an (PostgreSQL ${PG_MAJOR})"
+pwfile=$(mktemp)
+cat /data/postgres_password > "${pwfile}"
+chown postgres "${pwfile}"
+s6-setuidgid postgres "${pgbin}/initdb" \
+	--pgdata="${pgdata}" \
+	--username=paperless \
+	--pwfile="${pwfile}" \
+	--auth-local=scram-sha-256 \
+	--auth-host=scram-sha-256 \
+	--encoding=UTF8 \
+	--locale=C.UTF-8
+rm -f "${pwfile}"
+echo "${log_prefix} Datenbank angelegt"

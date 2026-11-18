@@ -1,0 +1,50 @@
+name: Paperless-ngx (offiziell)
+version: "3.5.1"
+slug: paperless_ngx_official
+description: >-
+  Paperless-ngx direkt aus dem offiziellen Image
+  ghcr.io/paperless-ngx/paperless-ngx – in der Home-Assistant-Seitenleiste.
+url: https://github.com/paperless-ngx/paperless-ngx
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+backup: cold
+timeout: 120
+init: false
+ingress: true
+ingress_port: 8000
+ingress_stream: true
+panel_icon: mdi:file-document-multiple
+panel_title: Paperless
+hassio_api: true
+homeassistant_api: false
+map:
+  - share:rw
+options:
+  admin_user: admin
+  admin_password: ""
+  ocr_language: deu
+  ocr_languages: deu eng
+  filename_format: "{{ created_year }}/{{ correspondent }}/{{ title }}"
+  media_dir: /share/paperless-ngx/media
+  consume_dir: /share/paperless-ngx/consume
+  env_vars: []
+schema:
+  admin_user: str
+  admin_password: password
+  ocr_language: str
+  ocr_languages: str
+  filename_format: str?
+  media_dir: str
+  consume_dir: str
+  timezone: str?
+  usermap_uid: int?
+  usermap_gid: int?
+  url: url?
+  tika_enabled: bool?
+  tika_endpoint: url?
+  gotenberg_endpoint: url?
+  env_vars:
+    - match(^[A-Z][A-Z0-9_]*=.*$)
