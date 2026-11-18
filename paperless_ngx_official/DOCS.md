@@ -46,3 +46,20 @@ Den Eingangsordner erreichst du z. B. über die Samba-App unter `share/paperless
 Eine GitHub Action im Repository prüft täglich die offiziellen Releases.
 Sobald eine neue Version erscheint, wird die App-Version erhöht und Home Assistant
 zeigt das Update an. Mit **Automatisch aktualisieren** in der App wird es selbst eingespielt.
+
+## Benachrichtigung bei neuen Dokumenten
+
+Mit `ha_notify` (Standard: an) löst jedes neu eingelesene Dokument in Home Assistant
+das Ereignis `paperless_document_added` aus. Daten: `id`, `title`, `correspondent`,
+`document_type`, `tags`, `created`, `image` (z. B. `/media/local/paperless/12.jpg`).
+
+Beispiel-Aktion für eine Automation mit Ereignis-Auslöser:
+
+```yaml
+action: notify.mobile_app_mein_handy
+data:
+  title: "Neues Dokument"
+  message: "{{ trigger.event.data.title }}"
+  data:
+    image: "{{ trigger.event.data.image }}"
+```

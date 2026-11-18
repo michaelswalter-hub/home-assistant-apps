@@ -43,6 +43,7 @@ RUN set -eux; \
 
 RUN chmod +x \
       /usr/local/bin/ha-config.py \
+      /usr/local/bin/ha-post-consume.py \
       /etc/s6-overlay/s6-rc.d/init-ha-config/run \
       /etc/s6-overlay/s6-rc.d/init-postgres/run \
       /etc/s6-overlay/s6-rc.d/init-migrate-old/run \

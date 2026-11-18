@@ -1,3 +1,7 @@
+## 3.5.1-6
+
+Neu: Option ha_notify – bei neuen Dokumenten Ereignis `paperless_document_added` in Home Assistant mit Vorschau unter /media/local/paperless/<id>.jpg.
+
 ## 3.5.1-5
 
 - Optionaler direkter Port (8000/tcp) für Handy-Apps wie Paperparrot

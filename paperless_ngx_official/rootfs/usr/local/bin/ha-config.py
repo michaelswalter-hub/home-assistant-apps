@@ -96,6 +96,19 @@ def main() -> int:
         "USERMAP_GID": opts.get("usermap_gid"),
     }
 
+    if opts.get("ha_notify", True):
+        # Neue Dokumente an Home Assistant melden (Ereignis + Vorschau in /media)
+        env["PAPERLESS_POST_CONSUME_SCRIPT"] = "/usr/local/bin/ha-post-consume.py"
+        notify_dir = Path("/media/paperless")
+        try:
+            import pwd
+
+            notify_dir.mkdir(parents=True, exist_ok=True)
+            pw = pwd.getpwnam("paperless")
+            os.chown(notify_dir, pw.pw_uid, pw.pw_gid)
+        except Exception as exc:  # noqa: BLE001
+            log(f"Hinweis: /media/paperless nicht vorbereitet: {exc}")
+
     env["HA_MIGRATE_OLD_APP"] = bool(opts.get("migrate_from_old_app"))
 
     url = opts.get("url")

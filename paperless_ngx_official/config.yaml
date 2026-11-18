@@ -1,5 +1,5 @@
 name: Paperless-ngx (offiziell)
-version: "3.5.1-5"
+version: "3.5.1-6"
 slug: paperless_ngx_official
 description: >-
   Paperless-ngx direkt aus dem offiziellen Image
@@ -19,7 +19,7 @@ ingress_stream: true
 panel_icon: mdi:file-document-multiple
 panel_title: Paperless
 hassio_api: true
-homeassistant_api: false
+homeassistant_api: true
 ports:
   8000/tcp: null
 ports_description:
@@ -27,6 +27,7 @@ ports_description:
 map:
   - share:rw
   - all_addon_configs:ro
+  - media:rw
 options:
   admin_user: admin
   admin_password: ""
@@ -36,6 +37,7 @@ options:
   media_dir: /share/paperless-ngx/media
   consume_dir: /share/paperless-ngx/consume
   tika_enabled: true
+  ha_notify: true
   migrate_from_old_app: false
   env_vars: []
 schema:
@@ -53,6 +55,7 @@ schema:
   tika_enabled: bool?
   tika_endpoint: url?
   gotenberg_endpoint: url?
+  ha_notify: bool?
   migrate_from_old_app: bool
   env_vars:
     - match(^[A-Z][A-Z0-9_]*=.*$)
