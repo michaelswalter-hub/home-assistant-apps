@@ -108,6 +108,17 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             log(f"Hinweis: /media/paperless nicht vorbereitet: {exc}")
 
+    if opts.get("ingress_sso", True):
+        # Anmeldung aus Home Assistant durchreichen (nur über Ingress, siehe ha_ingress_asgi.py)
+        env["HA_INGRESS_SSO"] = True
+        env["PAPERLESS_ENABLE_HTTP_REMOTE_USER"] = True
+        # nötig, weil jeder Ingress-Pfad "/api/" enthält (/api/hassio_ingress/...)
+        env["PAPERLESS_ENABLE_HTTP_REMOTE_USER_API"] = True
+        env["PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME"] = "HTTP_X_REMOTE_USER_NAME"
+        env["HA_SSO_USER_MAP"] = ",".join(opts.get("sso_user_map") or [])
+    else:
+        env["HA_INGRESS_SSO"] = False
+
     env["HA_MIGRATE_OLD_APP"] = bool(opts.get("migrate_from_old_app"))
 
     url = opts.get("url")

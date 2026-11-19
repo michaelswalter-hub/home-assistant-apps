@@ -92,8 +92,55 @@ async def _buffer_body(scope, receive):
     return {**scope, "headers": headers}, replay
 
 
+import os
+
+# Ingress-Anfragen kommen immer vom Supervisor (feste Adresse im internen HA-Netz).
+SUPERVISOR_IP = "172.30.32.2"
+REMOTE_USER_HEADERS = (b"x-remote-user-id", b"x-remote-user-name", b"x-remote-user-display-name")
+SSO_ENABLED = os.environ.get("HA_INGRESS_SSO", "false") == "true"
+SSO_USER_MAP = {}
+for _pair in os.environ.get("HA_SSO_USER_MAP", "").split(","):
+    _ha, _, _pl = _pair.partition("=")
+    if _ha.strip() and _pl.strip():
+        SSO_USER_MAP[_ha.strip().lower()] = _pl.strip()
+_sso_logged = set()
+
+
+def _secure_remote_user(scope):
+    """Anmeldedaten von Home Assistant nur über echten Ingress zulassen.
+
+    Jede andere Anfrage (Port 8010, Home-Assistant-Integration, ...) verliert
+    die X-Remote-User-*-Header, damit niemand eine Anmeldung fälschen kann.
+    """
+    headers = scope.get("headers") or []
+    client = (scope.get("client") or ("", 0))[0]
+    names = {n.lower() for n, _ in headers}
+    trusted = SSO_ENABLED and client == SUPERVISOR_IP and b"x-ingress-path" in names
+    if not trusted:
+        if SSO_ENABLED and b"x-ingress-path" in names and ("untrusted", client) not in _sso_logged:
+            _sso_logged.add(("untrusted", client))
+            print(f"[ha-sso] Ingress-Anfrage von {client} ist nicht vom Supervisor – Anmeldung wird nicht übernommen", flush=True)
+        if any(h in names for h in REMOTE_USER_HEADERS):
+            headers = [(n, v) for n, v in headers if n.lower() not in REMOTE_USER_HEADERS]
+            return {**scope, "headers": headers}
+        return scope
+
+    new_headers = []
+    for n, v in headers:
+        if n.lower() == b"x-remote-user-name":
+            ha_name = v.decode("utf-8", "replace").strip()
+            pl_name = SSO_USER_MAP.get(ha_name.lower(), ha_name)
+            if ha_name not in _sso_logged:
+                _sso_logged.add(ha_name)
+                print(f"[ha-sso] Home-Assistant-Benutzer '{ha_name}' -> Paperless-Benutzer '{pl_name}'", flush=True)
+            v = pl_name.encode("utf-8")
+        new_headers.append((n, v))
+    return {**scope, "headers": new_headers}
+
+
 async def application(scope, receive, send):
     if scope.get("type") in ("http", "websocket"):
+        scope = _secure_remote_user(scope)
         scope = _rewrite_null_origin(scope)
         scope = _restore_ingress_prefix(scope)
         if _needs_content_length(scope):

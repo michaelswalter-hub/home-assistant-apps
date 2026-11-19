@@ -63,3 +63,14 @@ data:
   data:
     image: "{{ trigger.event.data.image }}"
 ```
+
+## Anmeldung aus Home Assistant (SSO)
+
+Mit `ingress_sso` (Standard: an) ist man in Paperless automatisch mit dem
+Benutzernamen angemeldet, mit dem man in Home Assistant angemeldet ist –
+aber nur über die Seitenleiste. Anfragen über den direkten Port oder von der
+Home-Assistant-Integration können diese Anmeldung nicht nutzen.
+
+Heißt der Paperless-Benutzer anders als in Home Assistant, ordnet
+`sso_user_map` ihn zu, z. B. `michael=admin`. Unbekannte Namen legt Paperless
+als neue Benutzer ohne Rechte an.

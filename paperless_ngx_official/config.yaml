@@ -1,5 +1,5 @@
 name: Paperless-ngx (offiziell)
-version: "3.5.1-8"
+version: "3.5.1-9"
 slug: paperless_ngx_official
 description: >-
   Paperless-ngx direkt aus dem offiziellen Image
@@ -38,6 +38,8 @@ options:
   consume_dir: /share/paperless-ngx/consume
   tika_enabled: true
   ha_notify: true
+  ingress_sso: true
+  sso_user_map: []
   migrate_from_old_app: false
   env_vars: []
 schema:
@@ -56,6 +58,9 @@ schema:
   tika_endpoint: url?
   gotenberg_endpoint: url?
   ha_notify: bool?
+  ingress_sso: bool?
+  sso_user_map:
+    - match(^[^=,]+=[^=,]+$)
   migrate_from_old_app: bool
   env_vars:
     - match(^[A-Z][A-Z0-9_]*=.*$)
