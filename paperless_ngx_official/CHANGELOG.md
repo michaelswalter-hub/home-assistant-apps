@@ -1,3 +1,7 @@
+## 3.5.1-12
+
+Scans über Home Assistant werden als echte DIN-A4-Seiten zusammengefügt (verlustfrei).
+
 ## 3.5.1-11
 
 Neu: Scans über Home Assistant (ha_scan_inbox) – Seiten in /media/paperless-eingang werden zu einem PDF zusammengefügt und eingelesen.

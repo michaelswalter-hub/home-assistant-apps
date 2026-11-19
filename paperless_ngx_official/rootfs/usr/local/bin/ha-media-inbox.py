@@ -66,7 +66,11 @@ def merge_batch(batch: str, pages: list[tuple[int, Path]]) -> None:
 
     pages.sort(key=lambda p: p[0])
     images = [to_jpeg_bytes(p) for _, p in pages]
-    pdf = img2pdf.convert(images, rotation=img2pdf.Rotation.ifvalid)
+    # Jede Seite als echte DIN-A4-Seite (Hoch-/Querformat automatisch).
+    # Das Bild wird nur platziert, nicht neu berechnet – also verlustfrei.
+    a4 = (img2pdf.mm_to_pt(210), img2pdf.mm_to_pt(297))
+    layout = img2pdf.get_layout_fun(a4, fit=img2pdf.FitMode.into, auto_orient=True)
+    pdf = img2pdf.convert(images, layout_fun=layout, rotation=img2pdf.Rotation.ifvalid)
     target = unique_target(safe_name(batch) + ".pdf")
     tmp = TMP / f"{target.name}.part"
     tmp.write_bytes(pdf)
