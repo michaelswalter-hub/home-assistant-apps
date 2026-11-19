@@ -113,7 +113,9 @@ def _secure_remote_user(scope):
     die X-Remote-User-*-Header, damit niemand eine Anmeldung fälschen kann.
     """
     headers = scope.get("headers") or []
-    client = (scope.get("client") or ("", 0))[0]
+    client = str((scope.get("client") or ("", 0))[0] or "")
+    if client.lower().startswith("::ffff:"):  # IPv4 als IPv6-Adresse
+        client = client[7:]
     names = {n.lower() for n, _ in headers}
     trusted = SSO_ENABLED and client == SUPERVISOR_IP and b"x-ingress-path" in names
     if not trusted:

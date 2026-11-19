@@ -1,3 +1,7 @@
+## 3.5.1-10
+
+Korrektur SSO: Absenderadresse im IPv6-Format (::ffff:…) erkennen.
+
 ## 3.5.1-9
 
 Neu: Anmeldung aus Home Assistant durchreichen (ingress_sso), nur über die Seitenleiste; optional sso_user_map (z. B. michael=admin).
