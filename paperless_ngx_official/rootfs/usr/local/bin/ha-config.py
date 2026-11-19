@@ -108,6 +108,23 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             log(f"Hinweis: /media/paperless nicht vorbereitet: {exc}")
 
+    if opts.get("ha_scan_inbox", True):
+        # Scans über Home Assistant: /media/paperless-eingang wird beobachtet
+        env["HA_MEDIA_INBOX_ENABLED"] = True
+        inbox = Path("/media/paperless-eingang")
+        try:
+            import pwd
+
+            pw = pwd.getpwnam("paperless")
+            tmp = Path(consume).parent / ".eingang-tmp"
+            for d in (inbox, tmp):
+                d.mkdir(parents=True, exist_ok=True)
+                os.chown(d, pw.pw_uid, pw.pw_gid)
+        except Exception as exc:  # noqa: BLE001
+            log(f"Hinweis: {inbox} nicht vorbereitet: {exc}")
+    else:
+        env["HA_MEDIA_INBOX_ENABLED"] = False
+
     if opts.get("ingress_sso", True):
         # Anmeldung aus Home Assistant durchreichen (nur über Ingress, siehe ha_ingress_asgi.py)
         env["HA_INGRESS_SSO"] = True

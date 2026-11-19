@@ -1,3 +1,7 @@
+## 3.5.1-11
+
+Neu: Scans über Home Assistant (ha_scan_inbox) – Seiten in /media/paperless-eingang werden zu einem PDF zusammengefügt und eingelesen.
+
 ## 3.5.1-10
 
 Korrektur SSO: Absenderadresse im IPv6-Format (::ffff:…) erkennen.
